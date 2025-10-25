@@ -1,5 +1,5 @@
-var __defProp = Object.defineProperty;
-var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+const __defProp = Object.defineProperty;
+const __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/converter/linkParser.js
 function decodeBase64(str) {
@@ -1077,8 +1077,8 @@ function generateSingboxConfig(links, isFullConfig = false) {
 __name(generateSingboxConfig, "generateSingboxConfig");
 
 // src/converter/converter.js
-var userChats = /* @__PURE__ */ new Set();
-var Converterbot = class {
+const userChats = /* @__PURE__ */ new Set();
+const Converterbot = class {
   static {
     __name(this, "Converterbot");
   }
@@ -1445,8 +1445,8 @@ ss://${toBase642(`none:${generateUUID4()}`)}@${HOSTKU2}:80?encryption=none&type=
 __name(rotateconfig, "rotateconfig");
 
 // src/randomip/randomip.js
-var globalIpList = [];
-var globalCountryCodes = [];
+const globalIpList = [];
+const globalCountryCodes = [];
 async function fetchProxyList(url) {
   const response = await fetch(url);
   const ipText = await response.text();
@@ -1544,7 +1544,7 @@ async function handleCallbackQuery(bot, callbackQuery) {
 __name(handleCallbackQuery, "handleCallbackQuery");
 
 // src/randomip/bot2.js
-var TelegramBotku = class {
+const TelegramBotku = class {
   static {
     __name(this, "TelegramBotku");
   }
@@ -1852,7 +1852,7 @@ _Error:_ ${error.message}`,
 };
 
 // src/checkip/cek.js
-var WILDCARD_MAP = {
+const WILDCARD_MAP = {
   ava: "ava.game.naver.com",
   api: "api.midtrans.com",
   blibli: "business.blibli.com",
@@ -1868,11 +1868,11 @@ var WILDCARD_MAP = {
   fb: "investor.fb.com",
   bakrie: "bakrie.ac.id"
 };
-var WILDCARD_OPTIONS = Object.entries(WILDCARD_MAP).map(
+const WILDCARD_OPTIONS = Object.entries(WILDCARD_MAP).map(
   ([value, text]) => ({ text, value })
 );
-var DEFAULT_HOST = "jamal.gpj2.dpdns.org";
-var API_URL = "https://geovpn.vercel.app/check?ip=";
+const DEFAULT_HOST = "jamal.gpj2.dpdns.org";
+const API_URL = "https://geovpn.vercel.app/check?ip=";
 async function fetchIPData(ip, port) {
   try {
     const response = await fetch(`${API_URL}${encodeURIComponent(ip)}:${encodeURIComponent(port)}`);
@@ -1994,7 +1994,7 @@ ${configString2}
 __name(generateConfig, "generateConfig");
 
 // src/checkip/botCek.js
-var TelegramProxyCekBot = class {
+const TelegramProxyCekBot = class {
   static {
     __name(this, "TelegramProxyCekBot");
   }
@@ -2175,10 +2175,10 @@ Pilih protokol:`;
 };
 
 // src/proxyip/proxyip.js
-var APIKU = "https://geovpn.vercel.app/check?ip=";
-var DEFAULT_HOST2 = "jamal.gpj2.dpdns.org";
-var sentMessages = /* @__PURE__ */ new Map();
-var paginationState = /* @__PURE__ */ new Map();
+const APIKU = "https://geovpn.vercel.app/check?ip=";
+const DEFAULT_HOST2 = "jamal.gpj2.dpdns.org";
+const sentMessages = /* @__PURE__ */ new Map();
+const paginationState = /* @__PURE__ */ new Map();
 function generateUUID3() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0, v = c === "x" ? r : r & 3 | 8;
@@ -2409,7 +2409,7 @@ ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:80?encryption=none&type=ws&ho
 __name(handleCallbackQuery2, "handleCallbackQuery");
 
 // src/proxyip/bot3.js
-var TelegramProxyBot = class {
+const TelegramProxyBot = class {
   static {
     __name(this, "TelegramProxyBot");
   }
@@ -2466,7 +2466,7 @@ var TelegramProxyBot = class {
 };
 
 // src/wildcard/botwild.js
-var KonstantaGlobalbot = class {
+const KonstantaGlobalbot = class {
   static {
     __name(this, "KonstantaGlobalbot");
   }
@@ -2554,7 +2554,7 @@ var KonstantaGlobalbot = class {
     return globalThis.subdomainRequests.slice();
   }
 };
-var TelegramWildcardBot = class {
+const TelegramWildcardBot = class {
   static {
     __name(this, "TelegramWildcardBot");
   }
@@ -2840,8 +2840,8 @@ ${lines}`;
 };
 
 // src/bot.js
-var HOSTKU = "jamal.gpj2.dpdns.org";
-var TelegramBot = class {
+const HOSTKU = "jamal.gpj2.dpdns.org";
+const TelegramBot = class {
   static {
     __name(this, "TelegramBot");
   }
@@ -2990,7 +2990,7 @@ ${error.message}`);
 };
 
 // src/kuota.js
-var CekkuotaBotku = class _CekkuotaBotku {
+const CekkuotaBotku = class _CekkuotaBotku {
   static {
     __name(this, "CekkuotaBotku");
   }
