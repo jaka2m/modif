@@ -161,14 +161,14 @@ dns:
     - https://dns.google/dns-query
 
 rule-providers:
-  \u26D4 ADS:
+   ADS:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/malikshi/open_clash/main/rule_provider/rule_basicads.yaml"
     path: "./rule_provider/rule_basicads.yaml"
     interval: 86400
 
-  \u{1F51E} Porn:
+   Porn:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/malikshi/open_clash/main/rule_provider/rule_porn.yaml"
@@ -294,8 +294,8 @@ rule-providers:
       - "SELECTOR"
 
 rules:
-  - RULE-SET,\u26D4 ADS,ADS
-  - RULE-SET,\u{1F51E} Porn,PORN
+  - RULE-SET, ADS,ADS
+  - RULE-SET, Porn,PORN
   - IP-CIDR,192.168.0.0/16,DIRECT
   - IP-CIDR,10.0.0.0/8,DIRECT
   - IP-CIDR,172.16.0.0/12,DIRECT
@@ -1077,23 +1077,23 @@ function generateSingboxConfig(links, isFullConfig = false) {
 __name(generateSingboxConfig, "generateSingboxConfig");
 
 // src/converter/converter.js
-const userChats = /* @__PURE__ */ new Set();
+// src/converter/converter.js
 const Converterbot = class {
   static {
     __name(this, "Converterbot");
   }
-  constructor(token, apiUrl, ownerId) {
+  constructor(token, apiUrl, ownerId, env) {
     this.token = token;
     this.apiUrl = apiUrl || "https://api.telegram.org";
     this.ownerId = ownerId;
+    this.env = env;
   }
   async handleUpdate(update) {
-    if (!update.message) return new Response("OK", { status: 200 });
+    if (!update.message)
+      return new Response("OK", { status: 200 });
     const chatId = update.message.chat.id;
     const text = update.message.text || "";
     const messageId = update.message.message_id;
-    userChats.add(chatId);
-    console.log(`User ${chatId} added. Total users: ${userChats.size}`);
     if (text.startsWith("/broadcast") && chatId.toString() === this.ownerId.toString()) {
       const broadcastMessage = text.substring("/broadcast ".length).trim();
       if (broadcastMessage) {
@@ -1106,7 +1106,7 @@ const Converterbot = class {
     if (text.startsWith("/converter")) {
       await this.sendMessage(
         chatId,
-        `\u{1F916} *Geo Project Bot*
+        ` *Geo Project Bot*
 
 Kirimkan link konfigurasi V2Ray dan saya *SPIDERMAN* akan mengubahnya ke format *Singbox*, *Nekobox*, dan *Clash*.
 
@@ -1127,7 +1127,7 @@ Catatan:
       try {
         const links = text.split("\n").map((line) => line.trim()).filter((line) => line.includes("://")).slice(0, 10);
         if (links.length === 0) {
-          await this.sendMessage(chatId, "\u274C Tidak ada link valid yang ditemukan. Kirimkan link VMess, VLESS, Trojan, atau Shadowsocks.", { reply_to_message_id: messageId });
+          await this.sendMessage(chatId, " Tidak ada link valid yang ditemukan. Kirimkan link VMess, VLESS, Trojan, atau Shadowsocks.", { reply_to_message_id: messageId });
           return new Response("OK", { status: 200 });
         }
         const clashConfig = generateClashConfig(links, true);
@@ -1176,24 +1176,29 @@ Catatan:
     );
     return response.json();
   }
-  // Fungsi baru untuk broadcast pesan
   async sendBroadcastMessage(message) {
+    const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
     let successCount = 0;
     let failCount = 0;
+    const updatedUsers = [];
     for (const chatId of userChats) {
       try {
-        await this.sendMessage(chatId, message);
-        successCount++;
+        const response = await this.sendMessage(chatId, message);
+        if (response.ok) {
+          successCount++;
+          updatedUsers.push(chatId);
+        } else {
+          failCount++;
+          console.error(`Gagal mengirim pesan ke ${chatId}: ${response.description}`);
+        }
         await new Promise((resolve) => setTimeout(resolve, 50));
       } catch (error) {
         console.error(`Gagal mengirim pesan ke ${chatId}:`, error);
         failCount++;
-        if (error.description && (error.description.includes("bot was blocked by the user") || error.description.includes("chat not found"))) {
-          userChats.delete(chatId);
-        }
       }
     }
-    const totalUsers = userChats.size;
+    await this.env.GEO_DB.put("broadcast_users", JSON.stringify(updatedUsers));
+    const totalUsers = updatedUsers.length;
     const broadcastReport = `Pesan broadcast telah dikirimkan.
 
 Total user terdaftar: *${totalUsers}*
@@ -1214,31 +1219,31 @@ function generateUUID() {
 __name(generateUUID, "generateUUID");
 async function randomconfig() {
   try {
-    const HOSTKU2 = "jamal.gpj2.dpdns.org";
+    const HOSTKU2 = "joss.krikkrik.web.id";
     const GITHUB_BASE_URL = "https://raw.githubusercontent.com/jaka2m/botak/main/cek/";
     const proxyResponse = await fetch(`${GITHUB_BASE_URL}proxyList.txt`);
     if (!proxyResponse.ok) {
-      return "\u26A0\uFE0F Gagal mengambil daftar proxy.";
+      return " Gagal mengambil daftar proxy.";
     }
     const ipText = await proxyResponse.text();
     const ipLines = ipText.split("\n").filter((line) => line.trim() !== "");
     if (ipLines.length === 0) {
-      return "\u26A0\uFE0F Daftar proxy kosong atau tidak valid.";
+      return " Daftar proxy kosong atau tidak valid.";
     }
     const randomIndex = Math.floor(Math.random() * ipLines.length);
     const randomProxyLine = ipLines[randomIndex];
     const sequenceNumber = randomIndex + 1;
     const [ip, port, country, provider] = randomProxyLine.split(",");
     if (!ip || !port) {
-      return "\u26A0\uFE0F Data IP atau Port tidak lengkap dari daftar proxy.";
+      return " Data IP atau Port tidak lengkap dari daftar proxy.";
     }
     const checkResponse = await fetch(`https://geovpn.vercel.app/check?ip=${ip}:${port}`);
     if (!checkResponse.ok) {
-      return `\u26A0\uFE0F Gagal cek status IP ${ip}:${port}.`;
+      return ` Gagal cek status IP ${ip}:${port}.`;
     }
     const data = await checkResponse.json();
     if (data.status?.toUpperCase() !== "ACTIVE") {
-      return `\u26A0\uFE0F IP ${ip}:${port} tidak aktif.`;
+      return ` IP ${ip}:${port} tidak aktif.`;
     }
     const pathIPPORT = `/Free-VPN-CF-Geo-Project/${ip}=${port}`;
     const pathCD = `/Free-VPN-CF-Geo-Project/${data.countryCode}${sequenceNumber}`;
@@ -1294,12 +1299,12 @@ ${trojanTLSLink2}
 ${ssTLSLink2}
 \`\`\`
 
-\u{1F468}\u200D\u{1F4BB} Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
+ Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
 `;
     return configText;
   } catch (error) {
     console.error("Terjadi kesalahan:", error);
-    return `\u26A0\uFE0F Terjadi kesalahan: ${error.message}`;
+    return ` Terjadi kesalahan: ${error.message}`;
   }
 }
 __name(randomconfig, "randomconfig");
@@ -1309,7 +1314,7 @@ async function rotateconfig(chatId, text) {
   const command = text.trim();
   const args = command.split(" ");
   if (args.length !== 2) {
-    await this.sendMessage(chatId, `\u26A0\uFE0F *Format salah! Gunakan contoh berikut:*
+    await this.sendMessage(chatId, ` *Format salah! Gunakan contoh berikut:*
 \`/rotate id\``, {
       parse_mode: "Markdown"
     });
@@ -1355,18 +1360,18 @@ async function rotateconfig(chatId, text) {
     "jp"
   ];
   if (!validCountries.includes(countryCode)) {
-    await this.sendMessage(chatId, `\u26A0\uFE0F *Kode negara tidak valid! Gunakan kode yang tersedia.*`, {
+    await this.sendMessage(chatId, ` *Kode negara tidak valid! Gunakan kode yang tersedia.*`, {
       parse_mode: "Markdown"
     });
     return;
   }
-  const loadingMessage = await this.sendMessage(chatId, "\u23F3 Sedang memproses config...");
+  const loadingMessage = await this.sendMessage(chatId, " Sedang memproses config...");
   try {
     const response = await fetch("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
     const ipText = await response.text();
     const ipList = ipText.split("\n").map((line) => line.trim()).filter((line) => line !== "");
     if (ipList.length === 0) {
-      await this.sendMessage(chatId, `\u26A0\uFE0F *Tidak ada IP untuk negara ${countryCode.toUpperCase()}*`, {
+      await this.sendMessage(chatId, ` *Tidak ada IP untuk negara ${countryCode.toUpperCase()}*`, {
         parse_mode: "Markdown"
       });
       await this.deleteMessage(chatId, loadingMessage.result.message_id);
@@ -1374,7 +1379,7 @@ async function rotateconfig(chatId, text) {
     }
     const [ip, port, country, provider] = ipList[Math.floor(Math.random() * ipList.length)].split(",");
     if (!ip || !port) {
-      await this.sendMessage(chatId, `\u26A0\uFE0F Data IP atau Port tidak lengkap dari daftar proxy.`, {
+      await this.sendMessage(chatId, ` Data IP atau Port tidak lengkap dari daftar proxy.`, {
         parse_mode: "Markdown"
       });
       await this.deleteMessage(chatId, loadingMessage.result.message_id);
@@ -1383,7 +1388,7 @@ async function rotateconfig(chatId, text) {
     const statusResponse = await fetch(`https://geovpn.vercel.app/check?ip=${ip}:${port}`);
     const ipData = await statusResponse.json();
     if (ipData.status !== "ACTIVE") {
-      await this.sendMessage(chatId, `\u26A0\uFE0F *IP ${ip}:${port} tidak aktif.*`, {
+      await this.sendMessage(chatId, ` *IP ${ip}:${port} tidak aktif.*`, {
         parse_mode: "Markdown"
       });
       await this.deleteMessage(chatId, loadingMessage.result.message_id);
@@ -1396,7 +1401,7 @@ async function rotateconfig(chatId, text) {
       return v.toString(16);
     }), "generateUUID");
     const toBase642 = /* @__PURE__ */ __name((str) => typeof btoa === "function" ? btoa(unescape(encodeURIComponent(str))) : Buffer.from(str, "utf-8").toString("base64"), "toBase64");
-    const HOSTKU2 = "jamal.gpj2.dpdns.org";
+    const HOSTKU2 = "joss.krikkrik.web.id";
     const path = `/Free-VPN-CF-Geo-Project/${ip}=${port}`;
     const encodedVlessLabelTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} TLS`);
     const encodedVlessLabelNTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} NTLS`);
@@ -1411,414 +1416,680 @@ ISP     : ${provider}
 COUNTRY : ${ipData.country}
 STATUS  : ${ipData.status}
 \`\`\`
-\u{1F31F} *ROTATE VLESS TLS* \u{1F31F}
+ *ROTATE VLESS TLS* 
 \`\`\`
 vless://${generateUUID4()}@${HOSTKU2}:443?encryption=none&security=tls&sni=${HOSTKU2}&fp=randomized&type=ws&host=${HOSTKU2}&path=${encodeURIComponent(path)}#${encodedVlessLabelTLS}
 \`\`\`
-\u{1F31F} *ROTATE VLESS NTLS* \u{1F31F}
+ *ROTATE VLESS NTLS* 
 \`\`\`
 vless://${generateUUID4()}@${HOSTKU2}:80?path=${encodeURIComponent(path)}&security=none&encryption=none&host=${HOSTKU2}&fp=randomized&type=ws&sni=${HOSTKU2}#${encodedVlessLabelNTLS}
 \`\`\`
-\u{1F31F} *ROTATE TROJAN TLS* \u{1F31F}
+ *ROTATE TROJAN TLS* 
 \`\`\`
 trojan://${generateUUID4()}@${HOSTKU2}:443?encryption=none&security=tls&sni=${HOSTKU2}&fp=randomized&type=ws&host=${HOSTKU2}&path=${encodeURIComponent(path)}#${encodedTrojanLabelTLS}
 \`\`\`
-\u{1F31F} *ROTATE SS TLS* \u{1F31F}
+ *ROTATE SS TLS* 
 \`\`\`
 ss://${toBase642(`none:${generateUUID4()}`)}@${HOSTKU2}:443?encryption=none&type=ws&host=${HOSTKU2}&path=${encodeURIComponent(path)}&security=tls&sni=${HOSTKU2}#${encodedSsLabelTLS}
 \`\`\`
-\u{1F31F} *ROTATE SS NTLS* \u{1F31F}
+ *ROTATE SS NTLS* 
 \`\`\`
 ss://${toBase642(`none:${generateUUID4()}`)}@${HOSTKU2}:80?encryption=none&type=ws&host=${HOSTKU2}&path=${encodeURIComponent(path)}&security=none&sni=${HOSTKU2}#${encodedSsLabelNTLS}
 \`\`\`
 
-\u{1F468}\u200D\u{1F4BB} Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
+ Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
 `;
     await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
     await this.deleteMessage(chatId, loadingMessage.result.message_id);
   } catch (error) {
     console.error(error);
-    await this.sendMessage(chatId, `\u26A0\uFE0F Terjadi kesalahan: ${error.message}`);
+    await this.sendMessage(chatId, ` Terjadi kesalahan: ${error.message}`);
     await this.deleteMessage(chatId, loadingMessage.result.message_id);
   }
 }
 __name(rotateconfig, "rotateconfig");
 
 // src/randomip/randomip.js
-const globalIpList = [];
-const globalCountryCodes = [];
+
+let globalIpList = [];
+let globalCountryCodes = [];
+
 async function fetchProxyList(url) {
-  const response = await fetch(url);
-  const ipText = await response.text();
-  const ipList = ipText.split("\n").map((line) => line.trim()).filter((line) => line !== "");
-  return ipList;
+    const response = await fetch(url);
+    const ipText = await response.text();
+    const ipList = ipText.split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== "");
+    return ipList;
 }
 __name(fetchProxyList, "fetchProxyList");
+
 function getFlagEmoji(code) {
-  const OFFSET = 127397;
-  return [...code.toUpperCase()].map((c) => String.fromCodePoint(c.charCodeAt(0) + OFFSET)).join("");
+    const OFFSET = 127397;
+    return [...code.toUpperCase()]
+        .map((c) => String.fromCodePoint(c.charCodeAt(0) + OFFSET))
+        .join("");
 }
 __name(getFlagEmoji, "getFlagEmoji");
+
 function buildCountryButtons(page = 0, pageSize = 15) {
-  const start = page * pageSize;
-  const end = start + pageSize;
-  const pageItems = globalCountryCodes.slice(start, end);
-  const buttons = pageItems.map((code) => ({
-    text: `${getFlagEmoji(code)} ${code}`,
-    callback_data: `cc_${code}`
-  }));
-  const inline_keyboard = [];
-  for (let i = 0; i < buttons.length; i += 3) {
-    inline_keyboard.push(buttons.slice(i, i + 3));
-  }
-  const navButtons = [];
-  if (page > 0) navButtons.push({ text: "\u2B05\uFE0F Prev", callback_data: `randomip_page_${page - 1}` });
-  if (end < globalCountryCodes.length) navButtons.push({ text: "Next \u27A1\uFE0F", callback_data: `randomip_page_${page + 1}` });
-  if (navButtons.length) inline_keyboard.push(navButtons);
-  return { inline_keyboard };
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const pageItems = globalCountryCodes.slice(start, end);
+    
+    const buttons = pageItems.map((code) => ({
+        text: `${getFlagEmoji(code)} ${code}`,
+        callback_data: `cc_${code}`
+    }));
+    
+    const inline_keyboard = [];
+    for (let i = 0; i < buttons.length; i += 3) {
+        inline_keyboard.push(buttons.slice(i, i + 3));
+    }
+    
+    const navButtons = [];
+    if (page > 0) {
+        navButtons.push({ 
+            text: "◀️ Prev", 
+            callback_data: `randomip_page_${page - 1}` 
+        });
+    }
+    
+    if (end < globalCountryCodes.length) {
+        navButtons.push({ 
+            text: "Next ▶️", 
+            callback_data: `randomip_page_${page + 1}` 
+        });
+    }
+    
+    if (navButtons.length) {
+        inline_keyboard.push(navButtons);
+    }
+    
+    return { inline_keyboard };
 }
 __name(buildCountryButtons, "buildCountryButtons");
-function generateCountryIPsMessage(ipList, countryCode) {
-  const filteredIPs = ipList.filter((line) => line.split(",")[2] === countryCode);
-  if (filteredIPs.length === 0) return null;
-  let msg = `\u{1F310} *Proxy IP untuk negara ${countryCode} ${getFlagEmoji(countryCode)}:*
 
-`;
-  filteredIPs.slice(0, 20).forEach((line) => {
-    const [ip, port, _code, isp] = line.split(",");
-    msg += `
-\u{1F4CD} *IP:PORT* : \`${ip}:${port}\` 
-\u{1F310} *Country* : ${_code} ${getFlagEmoji(_code)}
-\u{1F4BB} *ISP* : ${isp}
-`;
-  });
-  return msg;
+function generateCountryIPsMessage(ipList, countryCode) {
+    const filteredIPs = ipList.filter((line) => line.split(",")[2] === countryCode);
+    if (filteredIPs.length === 0) return null;
+    
+    let msg = `🌍 *Proxy IP untuk negara ${countryCode} ${getFlagEmoji(countryCode)}:*\n\n`;
+    
+    filteredIPs.slice(0, 20).forEach((line) => {
+        const [ip, port, _code, isp] = line.split(",");
+        msg += `📍 *IP:PORT* : \`${ip}:${port}\`\n`;
+        msg += `🌍 *Country* : ${_code} ${getFlagEmoji(_code)}\n`;
+        msg += `💻 *ISP* : ${isp}\n\n`;
+    });
+    
+    return msg;
 }
 __name(generateCountryIPsMessage, "generateCountryIPsMessage");
+
 async function handleRandomIpCommand(bot, chatId) {
-  try {
-    globalIpList = await fetchProxyList("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
-    if (globalIpList.length === 0) {
-      await bot.sendMessage(chatId, `\u26A0\uFE0F *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*`, { parse_mode: "Markdown" });
-      return;
+    try {
+        globalIpList = await fetchProxyList("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
+        
+        if (globalIpList.length === 0) {
+            await bot.sendMessage(chatId, 
+                "❌ *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*", 
+                { parse_mode: "Markdown" }
+            );
+            return;
+        }
+        
+        globalCountryCodes = [...new Set(globalIpList.map((line) => line.split(",")[2]))].sort();
+        
+        const text = "Silakan pilih negara untuk mendapatkan IP random:";
+        const reply_markup = buildCountryButtons(0);
+        
+        await bot.sendMessage(chatId, text, {
+            parse_mode: "Markdown",
+            reply_markup
+        });
+        
+    } catch (error) {
+        await bot.sendMessage(chatId, 
+            `⚠️ Gagal mengambil data IP: ${error.message}`
+        );
     }
-    globalCountryCodes = [...new Set(globalIpList.map((line) => line.split(",")[2]))].sort();
-    const text = "Silakan pilih negara untuk mendapatkan IP random:";
-    const reply_markup = buildCountryButtons(0);
-    await bot.sendMessage(chatId, text, {
-      parse_mode: "Markdown",
-      reply_markup
-    });
-  } catch (error) {
-    await bot.sendMessage(chatId, `\u274C Gagal mengambil data IP: ${error.message}`);
-  }
 }
 __name(handleRandomIpCommand, "handleRandomIpCommand");
+
 async function handleCallbackQuery(bot, callbackQuery) {
-  const chatId = callbackQuery.message.chat.id;
-  const messageId = callbackQuery.message.message_id;
-  const data = callbackQuery.data;
-  if (data.startsWith("randomip_page_")) {
-    const page = parseInt(data.split("_")[2], 10);
-    const keyboard = buildCountryButtons(page);
-    await bot.editMessageReplyMarkup({
-      chat_id: chatId,
-      message_id: messageId,
-      reply_markup: keyboard
-    });
-    await bot.answerCallbackQuery(callbackQuery.id);
-    return;
-  }
-  if (data.startsWith("cc_")) {
-    const code = data.split("_")[1];
-    const msg = generateCountryIPsMessage(globalIpList, code);
-    if (!msg) {
-      await bot.sendMessage(chatId, `\u26A0\uFE0F Tidak ditemukan IP untuk negara: ${code}`, { parse_mode: "Markdown" });
-    } else {
-      await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+    const chatId = callbackQuery.message.chat.id;
+    const messageId = callbackQuery.message.message_id;
+    const data = callbackQuery.data;
+    
+    if (data.startsWith("randomip_page_")) {
+        const page = parseInt(data.split("_")[2], 10);
+        const keyboard = buildCountryButtons(page);
+        
+        await bot.editMessageReplyMarkup({
+            chat_id: chatId,
+            message_id: messageId,
+            reply_markup: keyboard
+        });
+        
+        await bot.answerCallbackQuery(callbackQuery.id);
+        return;
     }
-    await bot.answerCallbackQuery(callbackQuery.id);
-    return;
-  }
+    
+    if (data.startsWith("cc_")) {
+        const code = data.split("_")[1];
+        const msg = generateCountryIPsMessage(globalIpList, code);
+        
+        if (!msg) {
+            await bot.sendMessage(chatId, 
+                `❌ Tidak ditemukan IP untuk negara: ${code}`, 
+                { parse_mode: "Markdown" }
+            );
+        } else {
+            await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+        }
+        
+        await bot.answerCallbackQuery(callbackQuery.id);
+        return;
+    }
 }
 __name(handleCallbackQuery, "handleCallbackQuery");
 
 // src/randomip/bot2.js
+
 const TelegramBotku = class {
-  static {
-    __name(this, "TelegramBotku");
-  }
-  constructor(token, apiUrl = "https://api.telegram.org") {
-    this.token = token;
-    this.apiUrl = apiUrl;
-  }
-  async handleUpdate(update) {
-    if (update.callback_query) {
-      await handleCallbackQuery(this, update.callback_query);
-      return new Response("OK", { status: 200 });
+    static {
+        __name(this, "TelegramBotku");
     }
-    if (!update.message) return new Response("OK", { status: 200 });
-    const chatId = update.message.chat.id;
-    const text = update.message.text || "";
-    const messageId = update.message.message_id;
-    if (text === "/proxy") {
-      await handleRandomIpCommand(this, chatId);
-      return new Response("OK", { status: 200 });
+
+    constructor(token, apiUrl = "https://api.telegram.org", ownerId, env) {
+        this.token = token;
+        this.apiUrl = apiUrl;
+        this.ownerId = ownerId;
+        this.env = env;
     }
-    if (text === "/menu") {
-      const menuText = `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u2261             \u{1D5EA}\u{1D5D8}\u{1D5DF}\u{1D5D6}\u{1D5E2}\u{1D5E0}\u{1D5D8}                \u2261
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-Pilih command sesuai kebutuhan!
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u2022 /start        \u2192 mulai bot!
-\u2022 /proxyip      \u2192 Config random sesuai tombol Flag CC
-\u2022 /traffic      \u2192 Daftar pemakaian akun Cloudflare!
-\u2022 /findproxy    \u2192 Cara Cari Proxy!
-\u2022 /converter    \u2192 Converter Akun V2ray!
-\u2022 /randomconfig \u2192 Config random mix protocol!
-\u2022 /proxy        \u2192 Generate Proxy IPs!!
-\u2022 /config       \u2192 Generate config auto-rotate!
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u2022 /help         \u2192 Info format cek kuota XL
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-*\u2699\uFE0F Perintah Domain :*
-\u2022 /list         \u2192 Lihat daftar wildcard yang terdaftar
-\u2022 /add + bug    \u2192 Tambah domain wildcard (admin only)
-\u2022 /del + bug    \u2192 Hapus domain wildcard (admin only)
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-*SUPPORT*
-\u2022 /donate       \u2192 Bantu admin \u{1F618}!
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+    async handleUpdate(update) {
+        if (update.callback_query) {
+            const data = update.callback_query.data;
+            
+            if (data.startsWith("user_page_")) {
+                await this.handleUserCallback(update.callback_query);
+            } else {
+                await handleCallbackQuery(this, update.callback_query);
+            }
+            return new Response("OK", { status: 200 });
+        }
+        
+        if (!update.message) return new Response("OK", { status: 200 });
+        
+        const chatId = update.message.chat.id;
+        const text = update.message.text || "";
+        const messageId = update.message.message_id;
+
+        if (text === "/proxy") {
+            await handleRandomIpCommand(this, chatId);
+            return new Response("OK", { status: 200 });
+        }
+
+        if (text === "/menu") {
+            const menuText = `
+  
+╭─── • 𝗚𝗘𝗢 𝗕𝗢𝗧 𝗦𝗘𝗥𝗩𝗘𝗥 • ───╮
+│
+├─ 🌟 *Fitur Utama*
+│  ├─ /proxyip ─ Config acak by Flag
+│  ├─ /randomconfig ─ Config acak mix
+│  ├─ /converter ─ Convert Akun V2ray
+│  └─ /config ─ Config auto-rotate
+│
+├─ 🛠️ *Tools & Info*
+│  ├─ /proxy ─ Generate Proxy IPs
+│  ├─ /stats ─ Statistik Penggunaan
+│  ├─ /findproxy ─ Tutorial Cari Proxy
+│  └─ /user ─ Daftar Pengguna Bot
+│
+├─ 👤 *Manajemen Wildcard*
+│  ├─ /add \\\`[bug]\\\` ─ Tambah Wildcard
+│  ├─ /del \\\`[bug]\\\` ─ Hapus Wildcard (Admin)
+│  └─ /list ─ Daftar Wildcard
+│
+├─ 📣 *Admin*
+│  └─ /broadcast \\\`[teks]\\\` ─ Kirim Pesan
+│
+├─ ❤️ *Dukungan*
+│  └─ /donate ─ Bantu Kopi Admin
+│
+╰─── •「 @sampiiiiu 」• ───╯
+
 `;
-      await this.sendMessage(chatId, menuText, { parse_mode: "Markdown" });
+  await this.sendMessage(chatId, menuText, { parse_mode: "Markdown" });
+  return new Response("OK", { status: 200 });
+}
+    if (text === "/proxyip") {
+      await this.handleProxyipCommand(chatId);
       return new Response("OK", { status: 200 });
     }
-    if (text === "/findproxy") {
-      const menuText = `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F3F7}\uFE0F *TUTORIAL CARI PROXY* \u{1F3F7}\uFE0F
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F4CC} **FOFA (fofa.info)**
-\u{1F517} Situs: [en.fofa.info](https://en.fofa.info)
-\u{1F50D} Kueri pencarian:
+
+if (text === "/findproxy") {
+  const menuText = `
+
+ *TUTORIAL CARI PROXY* 
+
+ **FOFA (fofa.info)**
+ Situs: [en.fofa.info](https://en.fofa.info)
+ Kueri pencarian:
 \`\`\`query
 server=="cloudflare" && is_domain=false && banner="Content-Length: 155" && protocol="http" && org!="CLOUDFLARENET" && country="ID" && asn!="59134"
 \`\`\`
-\u{1F4A1} **Catatan:**
+ **Catatan:**
 - Ubah \`asn="63949"\` untuk ISP tertentu
 - Ubah \`country="ID"\` ke kode negara lain
 - Tambahkan filter port: \`&& port="443"\`
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F4CC} **HUNTER.HOW**
-\u{1F517} Situs: [hunter.how](https://hunter.how)
-\u{1F50D} Kueri pencarian:
+
+ **HUNTER.HOW**
+ Situs: [hunter.how](https://hunter.how)
+ Kueri pencarian:
 \`\`\`query
 as.org!="Cloudflare London, LLC"&&product.name="CloudFlare"&&header.status_code=="400"&&protocol=="http"&&header.content_length=="655"&&ip.country=="ID"
 \`\`\`
-\u{1F4A1} **Catatan:**
+ **Catatan:**
 - Tambah \`&&as.number="59134"\` untuk filter ASN
 - Tambah \`&&ip.port="443"\` untuk fokus ke port 443
 - Ubah negara dengan \`ip.country="SG"\`
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F4CC} **SHODAN.IO**
-\u{1F517} Situs: [shodan.io](https://shodan.io)
-\u{1F50D} Kueri pencarian:
+
+ **SHODAN.IO**
+ Situs: [shodan.io](https://shodan.io)
+ Kueri pencarian:
 \`\`\`query
 product:"Cloudflare" country:"ID"
 \`\`\`
-\u{1F4A1} **Catatan:**
+ **Catatan:**
 - Filter port: \`port:443\`
 - Filter provider: \`org:"Akamai"\`
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F4CC} **ZOOMEYE.HK**
-\u{1F517} Situs: [zoomeye.hk](https://zoomeye.hk)
-\u{1F50D} Kueri pencarian:
+
+ **ZOOMEYE.HK**
+ Situs: [zoomeye.hk](https://zoomeye.hk)
+ Kueri pencarian:
 \`\`\`query
 +app:"Cloudflare" +service:"http" +title:"400 The plain HTTP request was sent to HTTPS port" +country:"Singapore"
 \`\`\`
-\u{1F4A1} **Catatan:**
+ **Catatan:**
 - Tambah \`+asn:59134\` untuk filter ASN
 - Spesifikkan port dengan \`+port:"443"\`
 - Ubah negara dengan \`+country:"Indonesia"\`
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F4CC} **BINARYEDGE.IO**
-\u{1F517} Situs: [app.binaryedge.io](https://app.binaryedge.io)
-\u{1F50D} Kueri pencarian:
+
+ **BINARYEDGE.IO**
+ Situs: [app.binaryedge.io](https://app.binaryedge.io)
+ Kueri pencarian:
 \`\`\`query
 country:ID title:"400 The plain HTTP request was sent to HTTPS port" product:nginx protocol:"tcp" name:http banner:"Server: cloudflare" banner:"CF-RAY: -" NOT asn:209242
 \`\`\`
-\u{1F4A1} **Catatan:**
+ **Catatan:**
 - Hapus \`NOT\` untuk mencari ASN tertentu (\`asn:59134\`)
 - Tambah filter port dengan \`port:443\`
 - Filter provider: \`as_name:Digitalocean\`
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F4CC} **CENSYS.IO**
-\u{1F517} Situs: [search.censys.io](https://search.censys.io)
-\u{1F50D} Kueri pencarian dasar:
+
+ **CENSYS.IO**
+ Situs: [search.censys.io](https://search.censys.io)
+ Kueri pencarian dasar:
 \`\`\`query
 not autonomous_system.name: "CLOUDFLARE*" and services: (software.product: "CloudFlare Load Balancer" and http.response.html_title: "400 The plain HTTP request was sent to HTTPS port") and location.country: "Indonesia"
 \`\`\`
-\u{1F4A1} **Catatan:**
+ **Catatan:**
 - Tambahkan filter port dengan \`and services.port=443\`
 - Filter provider: \`autonomous_system.name: "nama_provider"\`
 
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F50E} Untuk mengecek status proxy, kirim hasil pencarian langsung ke bot ini.
+
+ Untuk mengecek status proxy, kirim hasil pencarian langsung ke bot ini.
 
-\u{1F468}\u200D\u{1F4BB} *Modded By:* [Geo Project](https://t.me/sampiiiiu)
+ *Modded By:* [Geo Project](https://t.me/sampiiiiu)
 `;
-      await this.sendMessage(chatId, menuText, { parse_mode: "Markdown" });
-      return new Response("OK", { status: 200 });
-    }
-    if (text === "/donate") {
-      const imageUrl = "https://github.com/jaka1m/project/raw/main/BAYAR.jpg";
-      try {
+  await this.sendMessage(chatId, menuText, { parse_mode: "Markdown" });
+  return new Response("OK", { status: 200 });
+}
+
+if (text === "/donate") {
+    const imageUrl = "https://github.com/jaka1m/project/raw/main/BAYAR.jpg";
+    
+    try {
         await fetch(`${this.apiUrl}/bot${this.token}/sendPhoto`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            photo: imageUrl,
-            caption: `
-\u{1F381} *Dukung Pengembangan Bot!* \u{1F381}
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json" 
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                photo: imageUrl,
+                caption: `
+💝 *Dukung Pengembangan Bot!* 💝
 
 Bantu kami terus berkembang dengan scan QRIS di atas!
 
-Terima kasih atas dukungannya! \u{1F64F}
+✨ *Fitur yang akan datang:*
+• Server yang lebih cepat
+• Lebih banyak negara proxy
+• Fitur premium eksklusif
+• Update rutin dan perbaikan bug
 
+Terima kasih atas dukungannya! 🙏
+
+_— Tim GEO BOT SERVER_
 `.trim(),
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "\u{1F4E2} GEO PROJECT", url: "https://t.me/sampiiiiu" }]
-              ]
-            }
-          })
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { 
+                                text: "🌐 GEO PROJECT", 
+                                url: "https://t.me/sampiiiiu" 
+                            },
+                            { 
+                                text: "⭐ Beri Rating", 
+                                url: "https://t.me/sampiiiiu" 
+                            }
+                        ],
+                        [
+                            { 
+                                text: "💬 Channel Update", 
+                                url: "https://t.me/sampiiiiu" 
+                            }
+                        ]
+                    ]
+                }
+            })
         });
-      } catch (error) {
-        console.error(error);
-      }
-      return new Response("OK", { status: 200 });
+        
+    } catch (error) {
+        console.error("❌ Error sending donation photo:", error);
+        // Fallback to text message if image fails
+        await this.sendMessage(chatId, 
+            `💝 *Dukung Pengembangan Bot!*\n\n` +
+            `Bantu kami terus berkembang dengan donasi melalui QRIS.\n\n` +
+            `Terima kasih atas dukungannya! 🙏\n\n` +
+            `🌐 [GEO PROJECT](https://t.me/sampiiiiu)`,
+            { parse_mode: "Markdown" }
+        );
     }
-    if (text === "/traffic") {
-      const CLOUDFLARE_API_TOKEN = "VuPuXHFxJtIv_9WoBANLIAh4eQXpTnwbmmu4eQWS";
-      const CLOUDFLARE_ZONE_ID = "d33a71c24bf9c46d634f861e588ab887";
-      const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
+    
+    return new Response("OK", { status: 200 });
+}
+
+    if (text.startsWith("/user")) {
+    try {
+        console.log("🔄 Processing /user command...");
+        
+        const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+        const page = parseInt(text.split(" ")[1]) || 1;
+        const usersPerPage = 10;
+        const totalUsers = userChats.length;
+        const totalPages = Math.ceil(totalUsers / usersPerPage);
+        const start = (page - 1) * usersPerPage;
+        const end = start + usersPerPage;
+        const usersToShow = userChats.slice(start, end);
+
+        console.log(`📊 Users: ${totalUsers}, Page: ${page}, Total Pages: ${totalPages}`);
+
+        // Validate page number
+        if (page < 1 || page > totalPages) {
+            await this.sendMessage(chatId, 
+                `❌ Halaman tidak valid. Total halaman: ${totalPages}`,
+                { parse_mode: "Markdown" }
+            );
+            return new Response("OK", { status: 200 });
+        }
+
+        // Build response text
+        let responseText = `👥 *DAFTAR PENGGUNA BOT*\n\n`;
+        responseText += `📊 Total: ${totalUsers} users\n`;
+       //  responseText += `📄 Halaman: ${page}/${totalPages}\n`;
+        // responseText += `👀 Menampilkan: ${start + 1}-${Math.min(end, totalUsers)}\n\n`;
+        
+        responseText += "┌── 📋 USER ID ──┐\n";
+        
+        if (usersToShow.length === 0) {
+            responseText += "│   No users found   │\n";
+        } else {
+            usersToShow.forEach((userId, index) => {
+                const number = start + index + 1;
+                responseText += `│ ${number}. ${userId}\n`;
+            });
+        }
+        
+        responseText += "└────────────┘\n";
+
+        // Build simple pagination keyboard
+        const keyboard = [];
+        const navButtons = [];
+
+        if (page > 1) {
+            navButtons.push({ 
+                text: "◀️ Prev", 
+                callback_data: `user_page_${page - 1}` 
+            });
+        }
+
+        if (totalPages > 1) {
+            navButtons.push({ 
+                text: `${page}/${totalPages}`, 
+                callback_data: `user_page_info` 
+            });
+        }
+
+        if (page < totalPages) {
+            navButtons.push({ 
+                text: "Next ▶️", 
+                callback_data: `user_page_${page + 1}` 
+            });
+        }
+
+        if (navButtons.length > 0) {
+            keyboard.push(navButtons);
+        }
+
+        console.log("📤 Sending message...");
+        
+        await this.sendMessage(chatId, responseText, {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: keyboard }
+        });
+
+        console.log("✅ Message sent successfully");
+
+    } catch (error) {
+        console.error("❌ Error:", error);
+        await this.sendMessage(chatId, 
+            `❌ Error: ${error.message}`,
+            { parse_mode: "Markdown" }
+        );
+    }
+    return new Response("OK", { status: 200 });
+}
+
+    if (text === "/stats") {
+    const CLOUDFLARE_API_TOKEN = "Wdkss4h77Dp7gpz1GUNd49dUSVCocVE0wkUgQq4l";
+    const CLOUDFLARE_ZONE_ID = "340498f7e72be9e4dcd0cf2f0bcb972c";
+    
+    const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
         const d = /* @__PURE__ */ new Date();
         d.setDate(d.getDate() - 10);
         return d.toISOString().split("T")[0];
-      }, "getTenDaysAgoDate");
-      const tenDaysAgo = getTenDaysAgoDate();
-      try {
-        const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            query: `query {
-              viewer {
-                zones(filter: { zoneTag: "${CLOUDFLARE_ZONE_ID}" }) {
-                  httpRequests1dGroups(
-                    limit: 10,
-                    orderBy: [date_DESC],
-                    filter: { date_geq: "${tenDaysAgo}" }
-                  ) {
-                    sum {
-                      bytes
-                      requests
-                    }
-                    dimensions {
-                      date
-                    }
-                  }
-                }
-              }
-            }`
-          })
-        });
-        const result = await response.json();
-        if (!result.data || !result.data.viewer || !result.data.viewer.zones.length) {
-          throw new Error("Gagal mengambil data pemakaian.");
-        }
-        let usageText = "*\u{1F4CA} Data Pemakaian 10 Hari Terakhir:*\n\n";
-        result.data.viewer.zones[0].httpRequests1dGroups.forEach((day) => {
-          const tanggal = day.dimensions.date;
-          const totalData = (day.sum.bytes / 1024 ** 4).toFixed(2);
-          const totalRequests = day.sum.requests.toLocaleString();
-          usageText += `\u{1F4C5} *Tanggal:* ${tanggal}
-\u{1F4E6} *Total Data:* ${totalData} TB
-\u{1F4CA} *Total Requests:* ${totalRequests}
+    }, "getTenDaysAgoDate");
 
-`;
-        });
-        await this.sendMessage(chatId, usageText, { parse_mode: "Markdown" });
-      } catch (error) {
-        await this.sendMessage(
-          chatId,
-          `\u26A0\uFE0F Gagal mengambil data pemakaian.
+    const tenDaysAgo = getTenDaysAgoDate();
 
-_Error:_ ${error.message}`,
-          { parse_mode: "Markdown" }
+    try {
+        // Show loading message
+        const loadingMsg = await this.sendMessage(chatId, 
+            "📊 *Mengambil data statistik...*", 
+            { parse_mode: "Markdown" }
         );
-      }
-      return new Response("OK", { status: 200 });
-    }
-    if (text === "/start") {
-      const imageUrl = "https://github.com/jaka8m/BOT-CONVERTER/raw/main/start.png";
-      try {
-        await fetch(`${this.apiUrl}/bot${this.token}/sendPhoto`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            photo: imageUrl,
-            caption: `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u2261             \u{1D5EA}\u{1D5D8}\u{1D5DF}\u{1D5D6}\u{1D5E2}\u{1D5E0}\u{1D5D8}                \u2261
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F50D} *Cara Penggunaan:*
-1. Masukkan alamat IP dan port yang ingin Anda cek.
-2. Jika tidak memasukkan port, maka default adalah *443*.
-3. Tunggu beberapa detik untuk hasilnya
 
-\u{1F4A1}KETIK /menu UNTUK MELIHAT COMMAND
-
-\u{1F4A1} *Format IP yang Diterima:*
-\u2022\`176.97.78.80\`
-\u2022\`176.97.78.80:2053\`
-
-\u26A0\uFE0F *Catatan:*
-- Jika status *DEAD*, Akun *VLESS*, *SS*, dan *TROJAN* tidak akan dibuat.
-
-\u{1F310} [WEB VPN TUNNEL](https://jamal.gpj2.dpdns.org)
-\u{1F4FA} [CHANNEL VPS & Script VPS](https://t.me/testikuy_mang)
-\u{1F465} [Phreaker GROUP](https://t.me/+Q1ARd8ZsAuM2xB6-)
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-            `.trim(),
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "\u{1F4E2} GEO PROJECT", url: "https://t.me/sampiiiiu" }]
-              ]
-            }
-          })
+        const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                query: `query {
+                    viewer {
+                        zones(filter: { zoneTag: "${CLOUDFLARE_ZONE_ID}" }) {
+                            httpRequests1dGroups(
+                                limit: 10,
+                                orderBy: [date_DESC],
+                                filter: { date_geq: "${tenDaysAgo}" }
+                            ) {
+                                sum {
+                                    bytes
+                                    requests
+                                }
+                                dimensions {
+                                    date
+                                }
+                            }
+                        }
+                    }
+                }`
+            })
         });
-      } catch (error) {
-        console.error(error);
-      }
-      return new Response("OK", { status: 200 });
+
+        const result = await response.json();
+        
+        if (!result.data || !result.data.viewer || !result.data.viewer.zones.length) {
+            throw new Error("Gagal mengambil data pemakaian dari Cloudflare.");
+        }
+
+        const dailyData = result.data.viewer.zones[0].httpRequests1dGroups;
+        
+        if (dailyData.length === 0) {
+            await this.editMessageText(chatId, loadingMsg.message_id,
+                "📊 *Tidak ada data pemakaian untuk 10 hari terakhir.*",
+                { parse_mode: "Markdown" }
+            );
+            return new Response("OK", { status: 200 });
+        }
+
+        // Calculate totals
+        let totalBandwidth = 0;
+        let totalRequests = 0;
+        
+        dailyData.forEach((day) => {
+            totalBandwidth += day.sum.bytes;
+            totalRequests += day.sum.requests;
+        });
+
+        // Format main stats message
+        let usageText = `📊 *STATISTIK PENGGUNAAN SERVER*\n\n`;
+        usageText += `⏰ **Periode:** 10 Hari Terakhir\n`;
+        usageText += `📅 **Dari:** ${tenDaysAgo} hingga ${new Date().toISOString().split('T')[0]}\n\n`;
+        
+        usageText += `📈 **TOTAL KESELURUHAN:**\n`;
+        usageText += `   ┣ 📊 Total Requests: ${totalRequests.toLocaleString()}\n`;
+        usageText += `   ┗ 💾 Total Bandwidth: ${(totalBandwidth / 1024 ** 3).toFixed(2)} GB\n\n`;
+        
+        usageText += `📋 **RINCIAN HARIAN:**\n`;
+        usageText += "┌─────────────────────────────────┐\n";
+
+        dailyData.forEach((day, index) => {
+            const tanggal = new Date(day.dimensions.date).toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            
+            const totalData = (day.sum.bytes / 1024 ** 3).toFixed(2);
+            const totalRequests = day.sum.requests.toLocaleString();
+            
+            usageText += `│ 📅 ${tanggal}\n`;
+            usageText += `│ ├─ 📨 Requests: ${totalRequests}\n`;
+            usageText += `│ └─ 💾 Bandwidth: ${totalData} GB\n`;
+            
+            if (index < dailyData.length - 1) {
+                usageText += "│ ───────────────────────────────\n";
+            }
+        });
+        
+        usageText += "└─────────────────────────────────┘\n\n";
+        
+        usageText += `💡 *Info:* Data diperbarui secara real-time dari Cloudflare Analytics`;
+
+        // Delete loading message and send final stats
+        await this.deleteMessage(chatId, loadingMsg.message_id);
+        await this.sendMessage(chatId, usageText, { 
+            parse_mode: "Markdown"
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching stats:", error);
+        await this.sendMessage(
+            chatId,
+            `❌ *Gagal mengambil data statistik*\n\n` +
+            `_Error:_ \`${error.message}\`\n\n` +
+            `Pastikan API token dan Zone ID masih valid.`,
+            { parse_mode: "Markdown" }
+        );
     }
+    
     return new Response("OK", { status: 200 });
+}
+    
+    if (text === "/start") {
+  const imageUrl = "https://github.com/jaka8m/BOT-CONVERTER/raw/main/start.png";
+  try {
+    await fetch(`${this.apiUrl}/bot${this.token}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: imageUrl,
+        caption: `
+
+                 
+
+ 👋 *Selamat Datang di Geo Bot Server!*
+
+Bot ini dapat membantu Anda memeriksa status proxy dan membuat konfigurasi V2Ray.
+
+*Cara Penggunaan:*
+1. Kirim alamat IP dan port (opsional, default 443).
+2. Tunggu beberapa detik untuk hasilnya.
+
+*Format yang Diterima:*
+• \`176.97.78.80\`
+• \`176.97.78.80:2053\`
+
+Ketik /menu untuk melihat semua perintah yang tersedia.
+
+⚠️ *Catatan:*
+- Jika status proxy *DEAD*, konfigurasi tidak akan dibuat.
+
+🔗 *Tautan Penting:*
+🌐 [WEB VPN TUNNEL](https://joss.krikkrik.web.id)
+📺 [CHANNEL VPS & Script](https://t.me/testikuy_mang)
+👥 [GRUP PHREAKER](https://t.me/+Q1ARd8ZsAuM2xB6-)
+
+`.trim(),
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: " GEO PROJECT", url: "https://t.me/sampiiiiu" }]
+          ]
+        }
+      })
+    });
+  } catch (error) {
+    console.error(error);
   }
+  return new Response("OK", { status: 200 });
+}
+return new Response("OK", { status: 200 });
+}
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
     const body = { chat_id: chatId, text, ...options };
@@ -1849,6 +2120,99 @@ _Error:_ ${error.message}`,
     });
     return response.json();
   }
+    async deleteMessage(chatId, messageId) {
+    const url = `${this.apiUrl}/bot${this.token}/deleteMessage`;
+    const body = { chat_id: chatId, message_id: messageId };
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  }
+  async editMessageText(text, { chat_id, message_id }) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = { chat_id, message_id, text, parse_mode: "Markdown" };
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  }
+  async handleProxyipCommand(chatId) {
+    const loadingMessage = await this.sendMessage(chatId, " *Sedang memproses, harap tunggu...*", { parse_mode: "Markdown" });
+    try {
+      const response = await fetch("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
+      const ipText = await response.text();
+      const ipList = ipText.split("\n").filter((line) => line.trim() !== "");
+      if (ipList.length === 0) {
+        await this.editMessageText(` *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*`, { chat_id: chatId, message_id: loadingMessage.result.message_id });
+        return;
+      }
+      const countryCodes = [...new Set(ipList.map((line) => line.split(",")[2]))].sort();
+      paginationState.set(chatId, { countryCodes, page: 0 });
+      const buttons = generateCountryButtons(countryCodes, 0);
+      await this.deleteMessage(chatId, loadingMessage.result.message_id);
+      await this.sendMessage(chatId, " *Pilih negara:*", {
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: buttons }
+      });
+    } catch (error) {
+      console.error("Error fetching IP list:", error);
+      await this.editMessageText(` *Terjadi kesalahan saat mengambil daftar IP: ${error.message}*`, { chat_id: chatId, message_id: loadingMessage.result.message_id });
+    }
+  }
+  async handleUserCallback(callbackQuery) {
+    const chatId = callbackQuery.message.chat.id;
+    const messageId = callbackQuery.message.message_id;
+    const data = callbackQuery.data;
+    const page = parseInt(data.split("_")[2]);
+    try {
+      const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+      const usersPerPage = 10;
+      const totalUsers = userChats.length;
+      const totalPages = Math.ceil(totalUsers / usersPerPage);
+      const start = (page - 1) * usersPerPage;
+      const end = start + usersPerPage;
+      const usersToShow = userChats.slice(start, end);
+      let responseText = `*Daftar Pengguna*\n\n`;
+      responseText += `Total: ${totalUsers} pengguna\n`;
+      responseText += `Halaman: ${page}/${totalPages}\n\n`;
+      usersToShow.forEach((userId, index) => {
+        responseText += `${start + index + 1}. User ID: \`${userId}\`\n`;
+      });
+      responseText += `\n`;
+      const keyboard = { inline_keyboard: [] };
+      const row = [];
+      if (page > 1) {
+        row.push({ text: " Prev", callback_data: `user_page_${page - 1}` });
+      }
+      if (end < totalUsers) {
+        row.push({ text: "Next ", callback_data: `user_page_${page + 1}` });
+      }
+      if (row.length > 0) {
+        keyboard.inline_keyboard.push(row);
+      }
+      await this.editMessageText(responseText, {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: "Markdown",
+        reply_markup: keyboard.inline_keyboard.length > 0 ? keyboard : null
+      });
+    } catch (error) {
+      // Menangani kemungkinan eror saat mengedit pesan
+      console.error("Gagal menangani user callback:", error);
+    }
+    await this.answerCallbackQuery(callbackQuery.id);
+  }
+  async editMessageText(text, { chat_id, message_id, parse_mode, reply_markup }) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = { chat_id, message_id, text, parse_mode, reply_markup };
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  }
 };
 
 // src/checkip/cek.js
@@ -1871,7 +2235,7 @@ const WILDCARD_MAP = {
 const WILDCARD_OPTIONS = Object.entries(WILDCARD_MAP).map(
   ([value, text]) => ({ text, value })
 );
-const DEFAULT_HOST = "jamal.gpj2.dpdns.org";
+const DEFAULT_HOST = "joss.krikkrik.web.id";
 const API_URL = "https://geovpn.vercel.app/check?ip=";
 async function fetchIPData(ip, port) {
   try {
@@ -1888,11 +2252,11 @@ function createProtocolInlineKeyboard(ip, port) {
   return {
     inline_keyboard: [
       [
-        { text: "\u26A1 VLESS", callback_data: `PROTOCOL|VLESS|${ip}|${port}` },
-        { text: "\u26A1 TROJAN", callback_data: `PROTOCOL|TROJAN|${ip}|${port}` }
+        { text: " VLESS", callback_data: `PROTOCOL|VLESS|${ip}|${port}` },
+        { text: " TROJAN", callback_data: `PROTOCOL|TROJAN|${ip}|${port}` }
       ],
       [
-        { text: "\u26A1 SHADOWSOCKS", callback_data: `PROTOCOL|SHADOWSOCKS|${ip}|${port}` }
+        { text: " SHADOWSOCKS", callback_data: `PROTOCOL|SHADOWSOCKS|${ip}|${port}` }
       ]
     ]
   };
@@ -1902,11 +2266,11 @@ function createInitialWildcardInlineKeyboard(ip, port, protocol) {
   return {
     inline_keyboard: [
       [
-        { text: "\u{1F6AB} NO WILDCARD", callback_data: `NOWILDCARD|${protocol}|${ip}|${port}` },
-        { text: "\u{1F505} WILDCARD", callback_data: `SHOW_WILDCARD|${protocol}|${ip}|${port}` }
+        { text: " NO WILDCARD", callback_data: `NOWILDCARD|${protocol}|${ip}|${port}` },
+        { text: " WILDCARD", callback_data: `SHOW_WILDCARD|${protocol}|${ip}|${port}` }
       ],
       [
-        { text: "\u{1F519} Kembali", callback_data: `BACK|${ip}|${port}` }
+        { text: " Kembali", callback_data: `BACK|${ip}|${port}` }
       ]
     ]
   };
@@ -1914,9 +2278,9 @@ function createInitialWildcardInlineKeyboard(ip, port, protocol) {
 __name(createInitialWildcardInlineKeyboard, "createInitialWildcardInlineKeyboard");
 function createWildcardOptionsInlineKeyboard(ip, port, protocol) {
   const buttons = WILDCARD_OPTIONS.map((option, index) => [
-    { text: `\u{1F505} ${index + 1}. ${option.text}`, callback_data: `WILDCARD|${protocol}|${ip}|${port}|${option.value}` }
+    { text: ` ${index + 1}. ${option.text}`, callback_data: `WILDCARD|${protocol}|${ip}|${port}|${option.value}` }
   ]);
-  buttons.push([{ text: "\u{1F519} Kembali", callback_data: `BACK|${ip}|${port}` }]);
+  buttons.push([{ text: " Kembali", callback_data: `BACK|${ip}|${port}` }]);
   return { inline_keyboard: buttons };
 }
 __name(createWildcardOptionsInlineKeyboard, "createWildcardOptionsInlineKeyboard");
@@ -1936,7 +2300,7 @@ function toBase64(str) {
 __name(toBase64, "toBase64");
 function generateConfig(config, protocol, wildcardKey = null) {
   if (!config || !config.ip || !config.port || !config.isp) {
-    return "\u274C Data tidak valid!";
+    return "❌ Data tidak valid!";
   }
   const host = wildcardKey ? `${WILDCARD_MAP[wildcardKey]}.${DEFAULT_HOST}` : DEFAULT_HOST;
   const sni = host;
@@ -1945,51 +2309,57 @@ function generateConfig(config, protocol, wildcardKey = null) {
   const ispEncoded = encodeURIComponent(config.isp);
   let qrUrl = "";
   if (protocol === "VLESS") {
-    const vlessTLS = `vless://${uuid}@${host}:443?encryption=none&security=tls&sni=${sni}&fp=randomized&type=ws&host=${host}&path=${path}#${ispEncoded}`;
-    const vlessNTLS = `vless://${uuid}@${host}:80?path=${path}&security=none&encryption=none&host=${host}&fp=randomized&type=ws&sni=${host}#${ispEncoded}`;
-    qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(vlessTLS)}&size=400x400`;
-    return `
+  const vlessTLS = `vless://${uuid}@${host}:443?encryption=none&security=tls&sni=${sni}&fp=randomized&type=ws&host=${host}&path=${path}#${ispEncoded}`;
+  const vlessNTLS = `vless://${uuid}@${host}:80?path=${path}&security=none&encryption=none&host=${host}&fp=randomized&type=ws&sni=${host}#${ispEncoded}`;
+  qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(vlessTLS)}&size=400x400`;
+  return `
 \`\`\`VLESS-TLS
 ${vlessTLS}
-\`\`\`\`\`\`VLESS-NTLS
+\`\`\`
+\`\`\`VLESS-NTLS
 ${vlessNTLS}
 \`\`\`
-\u{1F449} [QR Code URL](${qrUrl})
-\u{1F30D} [View Google Maps](https://www.google.com/maps?q=${config.latitude},${config.longitude})
-\u{1F468}\u200D\u{1F4BB} Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
+ [QR Code URL](${qrUrl})
+ [View Google Maps](https://www.google.com/maps?q=${config.latitude},${config.longitude})
+ Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
 `;
-  }
-  if (protocol === "TROJAN") {
-    const configString1 = `trojan://${uuid}@${host}:443?security=tls&sni=${sni}&fp=randomized&type=ws&host=${host}&path=${path}#${ispEncoded}`;
-    const configString2 = `trojan://${uuid}@${host}:80?path=${path}&security=none&encryption=none&host=${host}&fp=randomized&type=ws&sni=${host}#${ispEncoded}`;
-    qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(configString1)}&size=400x400`;
-    return `
+}
+
+if (protocol === "TROJAN") {
+  const configString1 = `trojan://${uuid}@${host}:443?security=tls&sni=${sni}&fp=randomized&type=ws&host=${host}&path=${path}#${ispEncoded}`;
+  const configString2 = `trojan://${uuid}@${host}:80?path=${path}&security=none&encryption=none&host=${host}&fp=randomized&type=ws&sni=${host}#${ispEncoded}`;
+  qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(configString1)}&size=400x400`;
+  return `
 \`\`\`TROJAN-TLS
 ${configString1}
-\`\`\`\`\`\`TROJAN-NTLS
+\`\`\`
+\`\`\`TROJAN-NTLS
 ${configString2}
 \`\`\`
-\u{1F449} [QR Code URL](${qrUrl})
-\u{1F30D} [View Google Maps](https://www.google.com/maps?q=${config.latitude},${config.longitude})
-\u{1F468}\u200D\u{1F4BB} Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
+ [QR Code URL](${qrUrl})
+ [View Google Maps](https://www.google.com/maps?q=${config.latitude},${config.longitude})
+ Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
 `;
-  }
-  if (protocol === "SHADOWSOCKS") {
-    const configString1 = `ss://${toBase64(`none:${uuid}`)}@${host}:443?encryption=none&type=ws&host=${host}&path=${path}&security=tls&sni=${sni}#${ispEncoded}`;
-    const configString2 = `ss://${toBase64(`none:${uuid}`)}@${host}:80?encryption=none&type=ws&host=${host}&path=${path}&security=none&sni=${sni}#${ispEncoded}`;
-    qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(configString1)}&size=400x400`;
-    return `
+}
+
+if (protocol === "SHADOWSOCKS") {
+  const configString1 = `ss://${toBase64(`none:${uuid}`)}@${host}:443?encryption=none&type=ws&host=${host}&path=${path}&security=tls&sni=${sni}#${ispEncoded}`;
+  const configString2 = `ss://${toBase64(`none:${uuid}`)}@${host}:80?encryption=none&type=ws&host=${host}&path=${path}&security=none&sni=${sni}#${ispEncoded}`;
+  qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(configString1)}&size=400x400`;
+  return `
 \`\`\`SHADOWSOCKS-TLS
 ${configString1}
-\`\`\`\`\`\`SHADOWSOCKS-NTLS
+\`\`\`
+\`\`\`SHADOWSOCKS-NTLS
 ${configString2}
 \`\`\`
-\u{1F449} [QR Code URL](${qrUrl})
-\u{1F30D} [View Google Maps](https://www.google.com/maps?q=${config.latitude},${config.longitude})
-\u{1F468}\u200D\u{1F4BB} Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
+ [QR Code URL](${qrUrl})
+ [View Google Maps](https://www.google.com/maps?q=${config.latitude},${config.longitude})
+ Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
 `;
-  }
-  return "\u274C Unknown protocol!";
+}
+
+return " Unknown protocol!";
 }
 __name(generateConfig, "generateConfig");
 
@@ -2045,7 +2415,7 @@ Please wait while it is being processed...
 `);
       const data = await fetchIPData(ip, port);
       if (!data) {
-        await this.editMessage(chatId, loadingMsg.result.message_id, `\u274C Gagal mengambil data untuk IP ${ip}:${port}`);
+        await this.editMessage(chatId, loadingMsg.result.message_id, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
         return new Response("OK", { status: 200 });
       }
       const { isp, country, delay, status } = data;
@@ -2071,14 +2441,14 @@ Pilih protokol:`;
       const parts = data.split("|");
       if (parts[0] === "PROTOCOL") {
         const [_, protocol, ip, port] = parts;
-        await this.editMessage(chatId, messageId, `\u2699\uFE0F Opsi wildcard untuk ${protocol}`, {
+        await this.editMessage(chatId, messageId, ` ⚙️Opsi wildcard untuk ${protocol}`, {
           reply_markup: createInitialWildcardInlineKeyboard(ip, port, protocol)
         });
         return new Response("OK", { status: 200 });
       }
       if (parts[0] === "SHOW_WILDCARD") {
         const [_, protocol, ip, port] = parts;
-        await this.editMessage(chatId, messageId, `\u2699\uFE0F Opsi wildcard untuk ${protocol}`, {
+        await this.editMessage(chatId, messageId, ` Opsi wildcard untuk ${protocol}`, {
           reply_markup: createWildcardOptionsInlineKeyboard(ip, port, protocol)
         });
         return new Response("OK", { status: 200 });
@@ -2093,18 +2463,18 @@ Please wait while it is being processed...
 `);
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `\u274C Gagal mengambil data untuk IP ${ip}:${port}`);
+          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
         const configText = generateConfig(dataInfo, protocol, null);
-        await this.editMessage(chatId, messageId, `\u2705 Config ${protocol} NO Wildcard:
+        await this.editMessage(chatId, messageId, ` Config ${protocol} NO Wildcard:
 ${configText}
 `, {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [[{
-              text: "\u2B05\uFE0F Back",
+              text: " Back",
               callback_data: `BACK_WILDCARD|${protocol}|${ip}|${port}`
             }]]
           }
@@ -2122,18 +2492,18 @@ Please wait while it is being processed...
 `);
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `\u274C Gagal mengambil data untuk IP ${ip}:${port}`);
+          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
         const configText = generateConfig(dataInfo, protocol, wildcardKey);
-        await this.editMessage(chatId, messageId, `\u2705 Config ${protocol} Wildcard *${wildcardKey}*:
+        await this.editMessage(chatId, messageId, ` Config ${protocol} Wildcard *${wildcardKey}*:
 ${configText}
 `, {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [[{
-              text: "\u2B05\uFE0F Back",
+              text: " Back",
               callback_data: `BACK_WILDCARD|${protocol}|${ip}|${port}`
             }]]
           }
@@ -2145,7 +2515,7 @@ ${configText}
         const [_, ip, port] = parts;
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `\u274C Gagal mengambil data untuk IP ${ip}:${port}`);
+          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
           return new Response("OK", { status: 200 });
         }
         const infoText = `\`\`\`INFORMATION
@@ -2164,7 +2534,7 @@ Pilih protokol:`;
       }
       if (parts[0] === "BACK_WILDCARD") {
         const [_, protocol, ip, port] = parts;
-        await this.editMessage(chatId, messageId, `\u2699\uFE0F Opsi wildcard untuk ${protocol}`, {
+        await this.editMessage(chatId, messageId, ` Opsi wildcard untuk ${protocol}`, {
           reply_markup: createInitialWildcardInlineKeyboard(ip, port, protocol)
         });
         return new Response("OK", { status: 200 });
@@ -2176,7 +2546,7 @@ Pilih protokol:`;
 
 // src/proxyip/proxyip.js
 const APIKU = "https://geovpn.vercel.app/check?ip=";
-const DEFAULT_HOST2 = "jamal.gpj2.dpdns.org";
+const DEFAULT_HOST2 = "joss.krikkrik.web.id";
 const sentMessages = /* @__PURE__ */ new Map();
 const paginationState = /* @__PURE__ */ new Map();
 function generateUUID3() {
@@ -2223,41 +2593,17 @@ function generateCountryButtons(countryCodes, page = 0, pageSize = 12) {
     }))
   );
   const navButtons = [];
-  if (page > 0) {
-    navButtons.push({ text: "\u2B05\uFE0F Prev", callback_data: `page_prev_${page - 1}` });
-  }
-  if (page < totalPages - 1) {
-    navButtons.push({ text: "Next \u27A1\uFE0F", callback_data: `page_next_${page + 1}` });
-  }
-  navButtons.push({ text: "\u{1F519} Back", callback_data: `page_back` });
-  buttons.push(navButtons);
-  return buttons;
+if (page > 0) {
+  navButtons.push({ text: " Prev", callback_data: `page_prev_${page - 1}` });
+}
+if (page < totalPages - 1) {
+  navButtons.push({ text: "Next ", callback_data: `page_next_${page + 1}` });
+}
+navButtons.push({ text: " Back", callback_data: `page_back` });
+buttons.push(navButtons);
+return buttons;
 }
 __name(generateCountryButtons, "generateCountryButtons");
-async function handleProxyipCommand(bot, msg) {
-  const chatId = msg.chat.id;
-  if (!canSendMessage(chatId, "proxyip_command")) return;
-  try {
-    const response = await fetch("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
-    const ipText = await response.text();
-    const ipList = ipText.split("\n").filter((line) => line.trim() !== "");
-    if (ipList.length === 0) {
-      await bot.sendMessage(chatId, `\u26A0\uFE0F *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*`, { parse_mode: "Markdown" });
-      return;
-    }
-    const countryCodes = [...new Set(ipList.map((line) => line.split(",")[2]))].sort();
-    paginationState.set(chatId, { countryCodes, page: 0 });
-    const buttons = generateCountryButtons(countryCodes, 0);
-    await bot.sendMessage(chatId, "\u{1F30D} *Pilih negara:*", {
-      parse_mode: "Markdown",
-      reply_markup: { inline_keyboard: buttons }
-    });
-  } catch (error) {
-    console.error("Error fetching IP list:", error);
-    await bot.sendMessage(chatId, `\u26A0\uFE0F *Terjadi kesalahan saat mengambil daftar IP: ${error.message}*`, { parse_mode: "Markdown" });
-  }
-}
-__name(handleProxyipCommand, "handleProxyipCommand");
 async function handleCallbackQuery2(bot, callbackQuery) {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
@@ -2270,7 +2616,7 @@ async function handleCallbackQuery2(bot, callbackQuery) {
     let page = paginationState.get(chatId).page;
     if (data === "page_back") {
       paginationState.delete(chatId);
-      await bot.editMessageText("\u{1F30D} *Pilih negara:*", {
+      await bot.editMessageText(" *Pilih negara:*", {
         chat_id: chatId,
         message_id: callbackQuery.message.message_id,
         parse_mode: "Markdown",
@@ -2322,7 +2668,7 @@ async function handleCallbackQuery2(bot, callbackQuery) {
       const ipList = ipText.split("\n").filter((line) => line.trim() !== "");
       const filteredIPs = ipList.filter((line) => line.split(",")[2] === countryCode);
       if (filteredIPs.length === 0) {
-        await bot.sendMessage(chatId, `\u26A0\uFE0F *Tidak ada IP tersedia untuk negara ${countryCode}.*`, { parse_mode: "Markdown" });
+        await bot.sendMessage(chatId, ` *Tidak ada IP tersedia untuk negara ${countryCode}.*`, { parse_mode: "Markdown" });
         await bot.answerCallbackQuery(callbackQuery.id);
         return;
       }
@@ -2330,18 +2676,18 @@ async function handleCallbackQuery2(bot, callbackQuery) {
       const [ip, port, , provider] = randomProxy.split(",");
       const statusResponse = await fetch(`${APIKU}${ip}:${port}`);
       const ipData = await statusResponse.json();
-      const status = ipData.status === "ACTIVE" ? "\u2705 ACTIVE" : "\u274C DEAD";
+      const status = ipData.status === "ACTIVE" ? " ACTIVE" : " DEAD";
       const safeProvider = provider.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10);
       const buttons = [
         [
-          { text: "\u26A1 VLESS", callback_data: `config_vless_${ip}_${port}_${countryCode}_${safeProvider}` },
-          { text: "\u26A1 TROJAN", callback_data: `config_trojan_${ip}_${port}_${countryCode}_${safeProvider}` }
+          { text: " VLESS", callback_data: `config_vless_${ip}_${port}_${countryCode}_${safeProvider}` },
+          { text: " TROJAN", callback_data: `config_trojan_${ip}_${port}_${countryCode}_${safeProvider}` }
         ],
         [
-          { text: "\u26A1 SHADOWSOCKS", callback_data: `config_ss_${ip}_${port}_${countryCode}_${safeProvider}` }
+          { text: " SHADOWSOCKS", callback_data: `config_ss_${ip}_${port}_${countryCode}_${safeProvider}` }
         ]
       ];
-      let messageText = `\u2705 *Info IP untuk ${getFlagEmoji2(countryCode)} ${countryCode} :*
+      let messageText = ` *Info IP untuk ${getFlagEmoji2(countryCode)} ${countryCode} :*
 \`\`\`
 INFORMATION
 IP      : ${ip}
@@ -2352,16 +2698,16 @@ STATUS  : ${status}
 \`\`\``;
       if (ipData.latitude && ipData.longitude) {
         messageText += `
-\u{1F449} \u{1F30D} [View Google Maps](https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude})`;
+  [View Google Maps](https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude})`;
       }
       await bot.sendMessage(chatId, messageText, {
         parse_mode: "Markdown",
         reply_markup: { inline_keyboard: buttons }
       });
     } catch (error) {
-      console.error("\u274C Error fetching IP status:", error);
-      await bot.sendMessage(chatId, `\u26A0\uFE0F *Terjadi kesalahan saat memverifikasi IP.*`, { parse_mode: "Markdown" });
-    }
+  console.error(" Error fetching IP status:", error);
+  await bot.sendMessage(chatId, ` *Terjadi kesalahan saat memverifikasi IP.*`, { parse_mode: "Markdown" });
+}
     await bot.answerCallbackQuery(callbackQuery.id);
     return;
   }
@@ -2398,8 +2744,8 @@ ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:80?encryption=none&type=ws&ho
       }
       await bot.sendMessage(chatId, configText, { parse_mode: "Markdown" });
     } catch (err) {
-      console.error("\u274C Error generating config:", err);
-      await bot.sendMessage(chatId, `\u26A0\uFE0F *Gagal membuat konfigurasi.*`, { parse_mode: "Markdown" });
+      console.error(" Error generating config:", err);
+      await bot.sendMessage(chatId, ` *Gagal membuat konfigurasi.*`, { parse_mode: "Markdown" });
     }
     await bot.answerCallbackQuery(callbackQuery.id);
     return;
@@ -2591,7 +2937,7 @@ const TelegramWildcardBot = class {
       if (subdomains.length === 0) {
         await this.sendMessage(
           chatId,
-          "```\u26A0\uFE0F \nMohon sertakan satu atau lebih subdomain setelah /add.\n```",
+          "``` \nMohon sertakan satu atau lebih subdomain setelah /add.\n```",
           { parse_mode: "Markdown" }
         );
         return new Response("OK", { status: 200 });
@@ -2600,50 +2946,21 @@ const TelegramWildcardBot = class {
       for (const sd of subdomains) {
         const cleanSd = sd.trim();
         const full = `${cleanSd}.${this.globalBot.rootDomain}`;
-        if (isOwner) {
-          let st = 500;
-          try {
-            st = await this.globalBot.addSubdomain(cleanSd);
-          } catch {
-          }
-          results.push(
-            st === 200 ? "```\u2705-Wildcard\n" + full + " berhasil ditambahkan oleh owner.```" : `\u274C Gagal menambahkan domain *${full}*, status: ${st}`
-          );
-        } else {
-          try {
-            if (await this.globalBot.findPendingRequest(cleanSd, chatId)) {
-              results.push("```\u26A0\uFE0F-Wildcard\n" + full + " sudah direquest dan menunggu approval.\n```");
-              continue;
-            }
-          } catch {
-          }
-          this.globalBot.saveDomainRequest({
-            domain: full,
-            subdomain: cleanSd,
-            requesterId: chatId,
-            requesterUsername: username,
-            requestTime: now,
-            status: "pending"
-          });
-          results.push(`\`\`\`\u2705 Request Wildcard ${full} berhasil dikirim!\`\`\``);
-          if (this.ownerId !== chatId) {
-            await this.sendMessage(
-              this.ownerId,
-              `\u{1F4EC} Permintaan subdomain baru!
-
-\u{1F517} Domain: ${full}
-\u{1F464} Pengguna: @${username} (ID: ${chatId})
-\u{1F4C5} Waktu: ${now}`
-            );
-          }
+        let st = 500;
+        try {
+          st = await this.globalBot.addSubdomain(cleanSd);
+        } catch {
         }
+        results.push(
+          st === 200 ? "```-Wildcard\n" + full + " berhasil ditambahkan.```" : ` Gagal menambahkan domain *${full}*, status: ${st}`
+        );
       }
       await this.sendMessage(chatId, results.join("\n\n"), { parse_mode: "Markdown" });
       return new Response("OK", { status: 200 });
     }
     if (text.startsWith("/del")) {
       if (!isOwner) {
-        await this.sendMessage(chatId, "\u26D4 Anda tidak berwenang menggunakan perintah ini.");
+        await this.sendMessage(chatId, " Anda tidak berwenang menggunakan perintah ini.");
         return new Response("OK", { status: 200 });
       }
       if (text === "/del") {
@@ -2651,7 +2968,7 @@ const TelegramWildcardBot = class {
         await this.sendMessage(
           chatId,
           `\`\`\`Contoh
-\u{1F4DD} Silakan kirim daftar subdomain yang ingin dihapus (satu per baris).
+📝 Silakan kirim daftar subdomain yang ingin dihapus (satu per baris).
 
 /del
 ava.game.naver.com
@@ -2672,7 +2989,7 @@ support.zoom.us
         toDelete = restLines;
       }
       if (toDelete.length === 0) {
-        await this.sendMessage(chatId, "\u26A0\uFE0F Mohon sertakan satu atau lebih subdomain setelah /del.");
+        await this.sendMessage(chatId, " Mohon sertakan satu atau lebih subdomain setelah /del.");
         return new Response("OK", { status: 200 });
       }
       const results = [];
@@ -2692,8 +3009,8 @@ support.zoom.us
         }
         if (st === 200) results.push(`\`\`\`Wildcard
 ${full}deleted successfully.\`\`\``);
-        else if (st === 404) results.push(`\u26A0\uFE0F Domain *${full}* tidak ditemukan.`);
-        else results.push(`\u274C Gagal menghapus domain *${full}*, status: ${st}.`);
+        else if (st === 404) results.push(` Domain *${full}* tidak ditemukan.`);
+        else results.push(` Gagal menghapus domain *${full}*, status: ${st}.`);
       }
       await this.sendMessage(chatId, results.join("\n\n"), { parse_mode: "Markdown" });
       return new Response("OK", { status: 200 });
@@ -2713,11 +3030,11 @@ ${full}deleted successfully.\`\`\``);
         ).join("\n");
         await this.sendMessage(
           chatId,
-          `\u{1F310} LIST CUSTOM DOMAIN :
+          ` LIST CUSTOM DOMAIN :
 
 ${listText}
 
-\u{1F4CA} Total: *${domains.length}* subdomain${domains.length > 1 ? "s" : ""}`,
+ Total: *${domains.length}* subdomain${domains.length > 1 ? "s" : ""}`,
           { parse_mode: "MarkdownV2" }
         );
         const fileContent = domains.map((d, i) => `${i + 1}. ${d}`).join("\n");
@@ -2729,7 +3046,7 @@ ${listText}
       if (!isOwner) {
         await this.sendMessage(chatId, `
 \`\`\`
-\u26D4 Anda tidak berwenang menggunakan perintah ini.
+ Anda tidak berwenang menggunakan perintah ini.
 \`\`\`
 `);
         return new Response("OK", { status: 200 });
@@ -2739,7 +3056,7 @@ ${listText}
       const full = `${sd}.${this.globalBot.rootDomain}`;
       const req = this.globalBot.findPendingRequest(sd);
       if (!req) {
-        await this.sendMessage(chatId, `\u26A0\uFE0F Tidak ada request pending untuk subdomain *${full}*.`, { parse_mode: "Markdown" });
+        await this.sendMessage(chatId, ` Tidak ada request pending untuk subdomain *${full}*.`, { parse_mode: "Markdown" });
       } else {
         let st = 500;
         try {
@@ -2749,21 +3066,21 @@ ${listText}
         if (st === 200) {
           this.globalBot.updateRequestStatus(sd, "approved");
           await this.sendMessage(chatId, `\`\`\`
-\u2705 Wildcard ${full} disetujui dan ditambahkan.
+ Wildcard ${full} disetujui dan ditambahkan.
 \`\`\``, { parse_mode: "Markdown" });
           await this.sendMessage(req.requesterId, `\`\`\`
-\u2705 Permintaan Wildcard ${full} Anda telah disetujui pada:
+ Permintaan Wildcard ${full} Anda telah disetujui pada:
 ${now}
 \`\`\``, { parse_mode: "Markdown" });
         } else {
-          await this.sendMessage(chatId, `\u274C Gagal menambahkan domain *${full}*, status: ${st}`, { parse_mode: "Markdown" });
+          await this.sendMessage(chatId, ` Gagal menambahkan domain *${full}*, status: ${st}`, { parse_mode: "Markdown" });
         }
       }
       return new Response("OK", { status: 200 });
     }
     if (text.startsWith("/reject ")) {
       if (!isOwner) {
-        await this.sendMessage(chatId, "```\n\u26D4 Anda tidak berwenang menggunakan perintah ini.\n```");
+        await this.sendMessage(chatId, "```\n Anda tidak berwenang menggunakan perintah ini.\n```");
         return new Response("OK", { status: 200 });
       }
       const sd = text.split(" ")[1]?.trim();
@@ -2771,17 +3088,17 @@ ${now}
       const full = `${sd}.${this.globalBot.rootDomain}`;
       const req = this.globalBot.findPendingRequest(sd);
       if (!req) {
-        await this.sendMessage(chatId, `\u26A0\uFE0F Tidak ada request pending untuk subdomain *${full}*.`, { parse_mode: "Markdown" });
+        await this.sendMessage(chatId, ` Tidak ada request pending untuk subdomain *${full}*.`, { parse_mode: "Markdown" });
       } else {
         this.globalBot.updateRequestStatus(sd, "rejected");
         await this.sendMessage(
           chatId,
-          "```\n\u274C Wildcard " + full + " telah ditolak.\n```",
+          "```\n Wildcard " + full + " telah ditolak.\n```",
           { parse_mode: "Markdown" }
         );
         await this.sendMessage(
           req.requesterId,
-          "```\n\u274C Permintaan Wildcard " + full + " Anda telah ditolak pada:\n" + now + "\n```",
+          "```\n Permintaan Wildcard " + full + " Anda telah ditolak pada:\n" + now + "\n```",
           { parse_mode: "Markdown" }
         );
       }
@@ -2789,12 +3106,12 @@ ${now}
     }
     if (text.startsWith("/req")) {
       if (!isOwner) {
-        await this.sendMessage(chatId, "\u26D4 Anda tidak berwenang melihat daftar request.", { parse_mode: "MarkdownV2" });
+        await this.sendMessage(chatId, " Anda tidak berwenang melihat daftar request.", { parse_mode: "MarkdownV2" });
         return new Response("OK", { status: 200 });
       }
       const all = this.globalBot.getAllRequests();
       if (!all.length) {
-        await this.sendMessage(chatId, "\u{1F4ED} Belum ada request subdomain masuk.", { parse_mode: "MarkdownV2" });
+        await this.sendMessage(chatId, " Belum ada request subdomain masuk.", { parse_mode: "MarkdownV2" });
       } else {
         let lines = "";
         all.forEach((r, i) => {
@@ -2803,7 +3120,7 @@ ${now}
           const requester = this.escapeMarkdownV2(r.requesterUsername);
           const requesterId = this.escapeMarkdownV2(r.requesterId.toString());
           const time = this.escapeMarkdownV2(r.requestTime);
-          lines += `*${i + 1}\\. ${domain}* \u2014 _${status}_
+          lines += `*${i + 1}\\. ${domain}* — _${status}_
 `;
           lines += `   requester: @${requester} \\(ID: ${requesterId}\\)
 `;
@@ -2811,7 +3128,7 @@ ${now}
 
 `;
         });
-        const message = `\u{1F4CB} *Daftar Semua Request:*
+        const message = ` *Daftar Semua Request:*
 
 ${lines}`;
         await this.sendMessage(chatId, message, { parse_mode: "MarkdownV2" });
@@ -2840,15 +3157,16 @@ ${lines}`;
 };
 
 // src/bot.js
-const HOSTKU = "jamal.gpj2.dpdns.org";
+const HOSTKU = "joss.krikkrik.web.id";
 const TelegramBot = class {
   static {
     __name(this, "TelegramBot");
   }
-  constructor(token, apiUrl, ownerId) {
+  constructor(token, apiUrl, ownerId, globalBot) {
     this.token = token;
     this.apiUrl = apiUrl || "https://api.telegram.org";
     this.ownerId = ownerId;
+    this.globalBot = globalBot;
   }
   async handleUpdate(update) {
     if (!update.message && !update.callback_query) {
@@ -2865,7 +3183,7 @@ const TelegramBot = class {
       const chatId = chat.id;
       const text = messageText?.trim() || "";
       if (text.startsWith("/config")) {
-        const helpMsg = `\u{1F31F} *PANDUAN CONFIG ROTATE* \u{1F31F}
+        const helpMsg = ` *PANDUAN CONFIG ROTATE* 
 
 Ketik perintah berikut untuk mendapatkan config rotate berdasarkan negara:
 
@@ -2888,51 +3206,36 @@ Bot akan memilih IP secara acak dari negara tersebut dan mengirimkan config-nya.
         return new Response("OK", { status: 200 });
       }
       if (text.startsWith("/randomconfig")) {
-        const loadingMsg = await this.sendMessageWithDelete(chatId, "\u23F3 Membuat konfigurasi acak...");
-        try {
-          const configText = await randomconfig();
-          await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
-        } catch (error) {
-          console.error("Error generating random config:", error);
-          await this.sendMessage(chatId, `\u26A0\uFE0F Terjadi kesalahan:
-${error.message}`);
-        }
-        if (loadingMsg && loadingMsg.message_id) {
-          await this.deleteMessage(chatId, loadingMsg.message_id);
-        }
-        return new Response("OK", { status: 200 });
-      }
-      if (text.startsWith("/listwildcard")) {
-        const wildcards = [
-          "ava.game.naver.com",
-          "krikkrik.tech",
-          "business.blibli.com",
-          "graph.instagram.com",
-          "quiz.int.vidio.com",
-          "live.iflix.com",
-          "support.zoom.us",
-          "blog.webex.com",
-          "investors.spotify.com",
-          "cache.netflix.com",
-          "zaintest.vuclip.com",
-          "io.ruangguru.com",
-          "api.midtrans.com",
-          "investor.fb.com",
-          "bakrie.ac.id"
-        ];
-        const configText = `*\u{1F3F7}\uFE0F LIST WILDCARD \u{1F3F7}\uFE0F*
-\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-
-` + wildcards.map((d, i) => `*${i + 1}.* \`${d}.${HOSTKU}\``).join("\n") + `
-
-\u{1F4E6} *Total:* ${wildcards.length} wildcard
-
-\u{1F468}\u200D\u{1F4BB} *Modded By:* [Geo Project](https://t.me/sampiiiiu)`;
-        await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
-        return new Response("OK", { status: 200 });
-      }
-    }
+  const loadingMsg = await this.sendMessageWithDelete(chatId, " Membuat konfigurasi acak...");
+  try {
+    const configText = await randomconfig();
+    await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
+  } catch (error) {
+    console.error("Error generating random config:", error);
+    await this.sendMessage(chatId, ` Terjadi kesalahan:\n${error.message}`);
   }
+  if (loadingMsg && loadingMsg.message_id) {
+    await this.deleteMessage(chatId, loadingMsg.message_id);
+  }
+  return new Response("OK", { status: 200 });
+}
+
+if (text.startsWith("/listwildcard")) {
+  const wildcards = await this.globalBot.getDomainList();
+  const configText = `* LIST WILDCARD *
+
+
+` + wildcards.map((d, i) => `*${i + 1}.* \`${d}\``).join("\n") + `
+
+ *Total:* ${wildcards.length} wildcard
+
+ *Modded By:* [Geo Project](https://t.me/sampiiiiu)`;
+  
+  await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
+  return new Response("OK", { status: 200 });
+}
+}
+}
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
     const body = {
@@ -2999,68 +3302,7 @@ const CekkuotaBotku = class _CekkuotaBotku {
     this.apiUrl = apiUrl;
     this.baseUrl = `${this.apiUrl}/bot${this.token}`;
   }
-  // Utility: escape HTML untuk mencegah parsing error di Telegram
-  static escapeHTML(str) {
-    if (typeof str !== "string") return str;
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-  }
-  // Utility: format tanggal ke 'YYYY-MM-DD HH:mm:ss' atau 'YYYY-MM-DD'
-  static formatDate(dateInput, type = "full") {
-    if (!dateInput) return "-";
-    let d;
-    if (dateInput instanceof Date) {
-      d = dateInput;
-    } else if (typeof dateInput === "string") {
-      if (type === "dateOnly" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-        return dateInput;
-      }
-      if (type === "full" && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateInput)) {
-        return dateInput;
-      }
-      d = new Date(dateInput);
-    } else {
-      return dateInput;
-    }
-    if (isNaN(d.getTime())) return "-";
-    const pad = /* @__PURE__ */ __name((n) => n < 10 ? "0" + n : n, "pad");
-    const year = d.getFullYear();
-    const month = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    const hour = pad(d.getHours());
-    const minute = pad(d.getMinutes());
-    const second = pad(d.getSeconds());
-    if (type === "dateOnly") {
-      return `${year}-${month}-${day}`;
-    }
-    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-  }
-  // Kirim chat action (typing, upload_photo, dll.)
-  async sendChatAction(chatId, action) {
-    const url = `${this.baseUrl}/sendChatAction`;
-    try {
-      await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, action })
-      });
-    } catch (err) {
-      console.error(`[ERROR] Gagal mengirim chat action ke ${chatId}:`, err.message);
-    }
-  }
-  // Hapus pesan
-  async deleteMessage(chatId, messageId) {
-    const url = `${this.baseUrl}/deleteMessage`;
-    try {
-      await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, message_id: messageId })
-      });
-    } catch (err) {
-      console.error(`[ERROR] Gagal menghapus pesan ${messageId} di ${chatId}:`, err.message);
-    }
-  }
-  // Kirim pesan (teks, parse_mode opsional)
+
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.baseUrl}/sendMessage`;
     const body = {
@@ -3074,162 +3316,240 @@ const CekkuotaBotku = class _CekkuotaBotku {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(`Telegram API error: ${errorData.description || res.statusText}`);
-      }
+      if (!res.ok) throw new Error(`Telegram API error: ${res.status}`);
       return res.json();
     } catch (err) {
-      console.error(`[ERROR] Gagal mengirim pesan ke ${chatId}:`, err.message);
+      console.error(`[ERROR] Send message:`, err.message);
       return null;
     }
   }
-  // Edit pesan yang sudah ada
-  async editMessageText(chatId, messageId, text, options = {}) {
-    const url = `${this.baseUrl}/editMessageText`;
-    const body = {
-      chat_id: chatId,
-      message_id: messageId,
-      text,
-      ...options
-    };
+
+  async deleteMessage(chatId, messageId) {
+    const url = `${this.baseUrl}/deleteMessage`;
     try {
-      const res = await fetch(url, {
+      await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId })
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(`Telegram API error: ${errorData.description || res.statusText}`);
-      }
-      return res.json();
     } catch (err) {
-      console.error(`[ERROR] Gagal mengedit pesan ${messageId} di ${chatId}:`, err.message);
-      return null;
+      console.error(`[ERROR] Delete message:`, err.message);
     }
   }
-  // Panggilan API cek kuota ke eksternal
-  async checkQuota(msisdn) {
-    const url = `https://api.geoproject.biz.id/cek_kuota?msisdn=${msisdn}`;
+
+  async sendChatAction(chatId, action) {
+    const url = `${this.baseUrl}/sendChatAction`;
     try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`[API Error] HTTP error! status: ${res.status}`);
-      }
-      const data = await res.json();
-      if (data.status !== "success") {
-        throw new Error(`[API Error] ${data.message || "Status API bukan success"}`);
-      }
-      return data;
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, action })
+      });
     } catch (err) {
-      console.error(`[ERROR] Gagal cek kuota untuk ${msisdn}:`, err.message);
+      console.error(`[ERROR] Send chat action:`, err.message);
+    }
+  }
+
+  // SOLUSI: Gunakan API yang sama tapi dengan approach berbeda
+  async checkQuota(msisdn) {
+    // Coba format nomor yang berbeda
+    const numbersToTry = [
+      msisdn,
+      msisdn.startsWith('62') ? '0' + msisdn.substring(2) : msisdn,
+      msisdn.startsWith('0') ? '62' + msisdn.substring(1) : msisdn
+    ];
+
+    for (const num of numbersToTry) {
+      try {
+        console.log(`[TRY] Attempting with number: ${num}`);
+        const result = await this._makeRequest(num);
+        if (result) return result;
+      } catch (err) {
+        console.log(`[FAIL] Failed with ${num}:`, err.message);
+        continue;
+      }
+    }
+    
+    throw new Error('Semua format nomor gagal');
+  }
+
+  async _makeRequest(msisdn) {
+    const url = `https://apigw.kmsp-store.com/sidompul/v4/cek_kuota?msisdn=${msisdn}&isJSON=true`;
+    
+    // Buat request dengan fetch options yang minimal
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 detik timeout
+    
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          'Authorization': 'Basic c2lkb21wdWxhcGk6YXBpZ3drbXNw',
+          'X-API-Key': '60ef29aa-a648-4668-90ae-20951ef90c55', 
+          'X-App-Version': '4.0.0',
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; Bot)'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log(`[RESPONSE] Status: ${res.status}`);
+      
+      if (res.status === 403) {
+        throw new Error('Akses ditolak oleh server (403)');
+      }
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
+      const data = await res.json();
+      console.log(`[DATA] Response:`, data);
+      
+      if (data.status === true) {
+        return data;
+      } else {
+        throw new Error(data.message || 'Response tidak valid');
+      }
+      
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('Timeout - Server tidak merespons');
+      }
       throw err;
     }
   }
-  // Membangun teks respons untuk satu nomor telepon
-  _buildQuotaResponseText(phoneNumber, apiResponse, username, userId, checkTime) {
-    const parts = [];
-    const sep = "============================";
-    parts.push(`\u{1F977} <b>User</b> : ${_CekkuotaBotku.escapeHTML(username)}`);
-    parts.push(`\u{1F194} <b>User ID</b> : ${_CekkuotaBotku.escapeHTML(String(userId))}`);
-    parts.push(`\u{1F4C6} <b>Waktu Pengecekan</b> : ${_CekkuotaBotku.escapeHTML(checkTime)}`);
-    parts.push("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-    try {
-      if (apiResponse?.status === "success" && apiResponse.data?.data) {
-        const info = apiResponse.data.data;
-        const sp = info.data_sp;
-        const {
-          quotas,
-          status_4g,
-          dukcapil,
-          grace_period,
-          active_period,
-          active_card,
-          prefix
-        } = sp;
-        parts.push(`\u260E\uFE0F <b>Nomor</b> : ${_CekkuotaBotku.escapeHTML(info.msisdn || "-")}`);
-        parts.push(`\u{1F4E1} <b>Tipe Kartu</b> : ${_CekkuotaBotku.escapeHTML(prefix?.value || "-")}`);
-        parts.push(`\u{1F4F6} <b>Status Kartu</b> : ${_CekkuotaBotku.escapeHTML(status_4g?.value || "-")}`);
-        parts.push(`\u{1FAAA} <b>Status Dukcapil</b> : ${_CekkuotaBotku.escapeHTML(dukcapil?.value || "-")}`);
-        parts.push(`\u{1F5D3}\uFE0F <b>Umur Kartu</b> : ${_CekkuotaBotku.escapeHTML(active_card?.value || "-")}`);
-        parts.push(`\u{1F693} <b>Masa Aktif</b> : ${_CekkuotaBotku.escapeHTML(_CekkuotaBotku.formatDate(active_period?.value, "dateOnly"))}`);
-        parts.push(`\u{1F198} <b>Masa Tenggang</b> : ${_CekkuotaBotku.escapeHTML(_CekkuotaBotku.formatDate(grace_period?.value, "dateOnly"))}`);
-        if (Array.isArray(quotas?.value) && quotas.value.length) {
-          quotas.value.forEach((group) => {
-            if (!group.length) return;
-            const pkg = group[0].packages;
-            parts.push(sep);
-            parts.push(`\u{1F4E6} <b>${_CekkuotaBotku.escapeHTML(pkg?.name || "Paket tidak dikenal")}</b>`);
-            parts.push(`\u23F0 <b>Aktif Hingga</b> : ${_CekkuotaBotku.escapeHTML(_CekkuotaBotku.formatDate(pkg?.expDate, "full"))}`);
-            group[0].benefits?.forEach((b) => {
-              parts.push(`  \u{1F300} <b>Benefit</b> : ${_CekkuotaBotku.escapeHTML(b.bname || "-")}`);
-              parts.push(`  \u{1F9E2} <b>Tipe Kuota</b>: ${_CekkuotaBotku.escapeHTML(b.type || "-")}`);
-              parts.push(`  \u{1F381} <b>Kuota</b> : ${_CekkuotaBotku.escapeHTML(b.quota || "-")}`);
-              parts.push(`  \u23F3 <b>Sisa</b> : ${_CekkuotaBotku.escapeHTML(b.remaining || "-")}`);
-            });
-          });
-        } else {
-          parts.push(sep);
-          parts.push(`\u2757 <b>Info</b>: Tidak ada data kuota ditemukan untuk nomor ini.`);
-        }
-      } else {
-        parts.push(`\u260E\uFE0F <b>Nomor</b> : ${_CekkuotaBotku.escapeHTML(phoneNumber)}`);
-        parts.push(sep);
-        parts.push(`\u2757 <b>Info</b>: Maaf, tidak dapat mengambil data kuota untuk nomor ini atau data tidak lengkap.`);
+
+  // SOLUSI ALTERNATIF: Jika tetap gagal, berikan template response
+  _createFallbackResponse(msisdn) {
+    return {
+      status: true,
+      data: {
+        msisdn: msisdn,
+        hasil: ` RESULT: <br><br>MSISDN: ${msisdn}<br><br> <b>API sedang tidak dapat diakses</b><br><br> <b>Solusi:</b><br>� Coba lagi nanti<br>� Gunakan website resmi<br>� Pastikan nomor aktif<br><br> <i>Powered by Geo Project</i>`
       }
-    } catch (err) {
-      console.error(`[ERROR] Gagal membangun respons untuk ${phoneNumber}:`, err.message);
-      parts.push(`\u260E\uFE0F <b>Nomor</b> : ${_CekkuotaBotku.escapeHTML(phoneNumber)}`);
-      parts.push(sep);
-      parts.push(`\u2757 <b>Info</b>: Terjadi kesalahan saat memproses data untuk nomor ini.`);
-    }
-    return `<blockquote>${parts.join("\n")}</blockquote>`;
+    };
   }
-  // Main handler untuk setiap update yang diterima dari Telegram
+
+  _formatResult(hasil) {
+    if (!hasil) return " Data tidak tersedia";
+    
+    let cleaned = hasil
+      .replace(/<br>/g, '\n')
+      .replace(/<br\/>/g, '\n')
+      .replace(/<\/?[^>]+(>|$)/g, '')
+      .replace(/\\ud83d\\udcc3/g, '')
+      .replace(/\\u274c/g, '')
+      .replace(/\\u2705/g, '')
+      .replace(/\\ud83c\\udf81/g, '')
+      .replace(/\\ud83c\\udf42/g, '')
+      .replace(/\\ud83c\\udf32/g, '');
+    
+    cleaned = cleaned
+      .replace(/RESULT:/g, ' HASIL CEK KUOTA:')
+      .replace(/MSISDN:/g, ' NOMOR:')
+      .replace(/Tipe Kartu:/g, ' TIPE KARTU:')
+      .replace(/Status Volte Device:/g, ' VOLTE DEVICE:')
+      .replace(/Status Volte Area:/g, ' VOLTE AREA:')
+      .replace(/Status Volte Simcard:/g, ' VOLTE SIMCARD:')
+      .replace(/Status 4G:/g, ' STATUS 4G:')
+      .replace(/Status Dukcapil:/g, ' DUKCAPIL:')
+      .replace(/Umur Kartu:/g, ' UMUR KARTU:')
+      .replace(/Masa Aktif:/g, ' MASA AKTIF:')
+      .replace(/Masa Berakhir Tenggang:/g, ' MASA TENGGANG:')
+      .replace(/Quota:/g, ' PAKET:')
+      .replace(/Aktif Hingga:/g, ' BERLAKU HINGGA:')
+      .replace(/Benefit:/g, ' BENEFIT:')
+      .replace(/Tipe Kuota:/g, ' TIPE KUOTA:')
+      .replace(/Kuota:/g, ' TOTAL KUOTA:')
+      .replace(/Sisa Kuota:/g, ' SISA KUOTA:');
+    
+    return cleaned;
+  }
+
   async handleUpdate(update) {
     const msg = update.message;
     const chatId = msg?.chat?.id;
     const messageId = msg?.message_id;
     const text = msg?.text?.trim() || "";
     const from = msg?.from || {};
-    const username = from.username || from.first_name || "N/A";
-    const userId = from.id || "N/A";
+    const username = from.username || from.first_name || "User";
+    
     if (!chatId || !text) return;
-    if (text.startsWith("/help")) {
-      const helpText = `
-<b>Bantuan Bot Cek Kuota</b>
 
-\u2022 Kirim nomor HP untuk cek kuota.
-\u2022 Format: <code>08xxxxxx</code> atau <code>628xxxxxx</code>.
-\u2022 Anda bisa mengirim beberapa nomor sekaligus, pisahkan dengan spasi.
-\u2022 Contoh: <code>081234567890 628987654321</code>
+    if (text.startsWith("/help") || text.startsWith("/start")) {
+      const helpText = `
+ <b>BOT CEK KUOTA XL</b>
+
+ <b>Cara Penggunaan:</b>
+Kirim nomor HP XL untuk cek kuota
+
+ <b>Format:</b>
+<code>08xxxxxx</code> atau <code>628xxxxxx</code>
+
+ <b>Contoh:</b>
+<code>081234567890</code>
+<code>087812345678</code>
+
+ <b>Note:</b>
+� Hanya untuk nomor XL
+� Jika gagal, coba beberapa saat lagi
       `;
       return this.sendMessage(chatId, helpText, { parse_mode: "HTML" });
     }
-    const phoneNumbers = text.split(/\s+/).filter((num) => (num.startsWith("08") || num.startsWith("628")) && num.length >= 10 && num.length <= 14);
+
+    const phoneNumbers = text.split(/\s+/).filter((num) => {
+      const cleanNum = num.replace(/[^\d]/g, '');
+      return (cleanNum.startsWith("08") || cleanNum.startsWith("628")) && cleanNum.length >= 10 && cleanNum.length <= 14;
+    }).map(num => num.replace(/[^\d]/g, ''));
+    
     if (phoneNumbers.length === 0) {
-      return;
+      return this.sendMessage(chatId, " Format nomor tidak valid. Gunakan /help untuk bantuan.", { parse_mode: "HTML" });
     }
-    const loadingMessageText = `\u231B Sedang memproses ${phoneNumbers.length > 1 ? "" : ""}...`;
-    const loadingMessageResponse = await this.sendMessage(chatId, loadingMessageText);
-    const loadingMessageId = loadingMessageResponse?.result?.message_id;
+
+    const loadingMessage = await this.sendMessage(chatId, ` Memproses ${phoneNumbers.length} nomor...`);
+    const loadingMessageId = loadingMessage?.result?.message_id;
+    
     await this.sendChatAction(chatId, "typing");
+    
     const allResponses = [];
-    const now = /* @__PURE__ */ new Date();
-    const checkTime = _CekkuotaBotku.formatDate(now, "full");
+    
     for (const number of phoneNumbers) {
       try {
-        const apiRes = await this.checkQuota(number);
-        allResponses.push(this._buildQuotaResponseText(number, apiRes, username, userId, checkTime));
+        console.log(`[PROCESS] Number: ${number}`);
+        
+        let apiRes;
+        try {
+          apiRes = await this.checkQuota(number);
+        } catch (error) {
+          console.log(`[FALLBACK] Using fallback for ${number}`);
+          apiRes = this._createFallbackResponse(number);
+        }
+        
+        if (apiRes.status && apiRes.data) {
+          const formattedResult = this._formatResult(apiRes.data.hasil);
+          allResponses.push(` <b>User:</b> ${username}\n${formattedResult}`);
+        } else {
+          allResponses.push(` <b>Gagal untuk ${number}:</b>\n${apiRes.data?.keteranganError || apiRes.message || "Error tidak diketahui"}`);
+        }
+        
       } catch (err) {
-        allResponses.push(this._buildQuotaResponseText(number, { status: "error", message: err.message }, username, userId, checkTime));
+        console.error(`[FINAL ERROR] ${number}:`, err.message);
+        allResponses.push(` <b>Error untuk ${number}:</b>\n${err.message}\n\n <i>Server API sedang maintenance</i>`);
       }
     }
+    
     if (loadingMessageId) {
       await this.deleteMessage(chatId, loadingMessageId);
     }
-    await this.sendMessage(chatId, allResponses.join("\n\n"), { parse_mode: "HTML" });
+    
+    if (allResponses.length > 0) {
+      await this.sendMessage(chatId, allResponses.join("\n\n"), { parse_mode: "HTML" });
+    }
+    
     if (messageId) {
       await this.deleteMessage(chatId, messageId);
     }
@@ -3237,21 +3557,29 @@ const CekkuotaBotku = class _CekkuotaBotku {
 };
 
 // src/worker.js
-var worker_default = {
+const worker_default = {
   async fetch(request, env) {
     if (request.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
     try {
       const update = await request.json();
-      const token = "8260084773:AAG4TZ4A-yf0cIkqC4H0fgm14x_Cz4Y1wkw";
+      if (update.message) {
+        const chatId = update.message.chat.id;
+        const currentUsers = await env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+        if (!currentUsers.includes(chatId)) {
+          currentUsers.push(chatId);
+          await env.GEO_DB.put("broadcast_users", JSON.stringify(currentUsers));
+        }
+      }
+      const token = "8260084773:AAG3eaP0FbYg7FizqSeAre8GHcCOOSv1oUc";
       const ownerId = 1467883032;
       const apiKey = "28595cd826561d8014059ca54712d3ca3332c";
       const accountID = "716746bfb7638b3aaa909b55740fbc60";
-      const zoneID = "b17a795202e9bbc768204782ae038681";
+      const zoneID = "340498f7e72be9e4dcd0cf2f0bcb972c";
       const apiEmail = "pihajamal@gmail.com";
-      const serviceName = "jamal";
-      const rootDomain = "gpj2.dpdns.org";
+      const serviceName = "joss";
+      const rootDomain = "krikkrik.web.id";
       const globalBot = new KonstantaGlobalbot({
         apiKey,
         accountID,
@@ -3260,22 +3588,35 @@ var worker_default = {
         serviceName,
         rootDomain
       });
-      const bot1 = new TelegramBot(token, "https://api.telegram.org", ownerId, globalBot);
-      const bot2 = new TelegramBotku(token, "https://api.telegram.org", ownerId, globalBot);
-      const bot3 = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
-      const bot4 = new TelegramProxyBot(token, "https://api.telegram.org", ownerId, globalBot);
-      const bot5 = new TelegramWildcardBot(token, "https://api.telegram.org", ownerId, globalBot);
-      const bot6 = new CekkuotaBotku(token, "https://api.telegram.org", ownerId, globalBot);
-      const bot7 = new Converterbot(token, "https://api.telegram.org", ownerId, globalBot);
-      await Promise.all([
-        bot1.handleUpdate(update),
-        bot2.handleUpdate(update),
-        bot3.handleUpdate(update),
-        bot4.handleUpdate(update),
-        bot5.handleUpdate(update),
-        bot6.handleUpdate(update),
-        bot7.handleUpdate(update)
-      ]);
+      let bot;
+      if (update.callback_query) {
+        const data = update.callback_query.data;
+        if (data.startsWith("randomip_page_") || data.startsWith("cc_") || data.startsWith("user_page_")) {
+          bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
+        } else if (data.startsWith("PROTOCOL|") || data.startsWith("SHOW_WILDCARD|") || data.startsWith("NOWILDCARD|") || data.startsWith("WILDCARD|") || data.startsWith("BACK|") || data.startsWith("BACK_WILDCARD|")) {
+          bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
+        } else if (data.startsWith("page_") || data.startsWith("select_") || data.startsWith("config_")) {
+          bot = new TelegramProxyBot(token, "https://api.telegram.org", ownerId, globalBot);
+        }
+      } else if (update.message && update.message.text) {
+        const text = update.message.text.trim();
+        if (text.startsWith("/config") || text.startsWith("rotate ") || text.startsWith("/randomconfig") || text.startsWith("/listwildcard")) {
+          bot = new TelegramBot(token, "https://api.telegram.org", ownerId, globalBot);
+        } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/user") || text.startsWith("/proxyip")) {
+          bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
+        } else if (text.match(/^(\d{1,3}(?:\.\d{1,3}){3}):?(\d{1,5})?$/) && !text.includes("://")) {
+          bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
+        } else if (text.startsWith("/add") || text.startsWith("/del") || text.startsWith("/list") || text.startsWith("/approve ") || text.startsWith("/reject ") || text.startsWith("/req")) {
+          bot = new TelegramWildcardBot(token, "https://api.telegram.org", ownerId, globalBot);
+        } else if (text.startsWith("/help") || text.split(/\s+/).some((num) => (num.startsWith("08") || num.startsWith("628")) && num.length >= 10 && num.length <= 14)) {
+          bot = new CekkuotaBotku(token, "https://api.telegram.org", ownerId, globalBot);
+        } else if (text.startsWith("/broadcast") || text.startsWith("/converter") || text.includes("://")) {
+          bot = new Converterbot(token, "https://api.telegram.org", ownerId, env);
+        }
+      }
+      if (bot) {
+        await bot.handleUpdate(update);
+      }
       return new Response("OK", { status: 200 });
     } catch (error) {
       return new Response(
@@ -3291,4 +3632,3 @@ var worker_default = {
 export {
   worker_default as default
 };
-//# sourceMappingURL=worker.js.map
