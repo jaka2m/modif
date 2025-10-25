@@ -1613,11 +1613,7 @@ const TelegramBotku = class {
         if (update.callback_query) {
             const data = update.callback_query.data;
             
-            if (data.startsWith("user_page_")) {
-                await this.handleUserCallback(update.callback_query);
-            } else {
-                await handleCallbackQuery(this, update.callback_query);
-            }
+            await handleCallbackQuery(this, update.callback_query);
             return new Response("OK", { status: 200 });
         }
         
@@ -1646,8 +1642,7 @@ const TelegramBotku = class {
 ├─ 🛠️ *Tools & Info*
 │  ├─ /proxy ─ Generate Proxy IPs
 │  ├─ /stats ─ Statistik Penggunaan
-│  ├─ /findproxy ─ Tutorial Cari Proxy
-│  └─ /user ─ Daftar Pengguna Bot
+│  └─ /findproxy ─ Tutorial Cari Proxy
 │
 ├─ 👤 *Manajemen Wildcard*
 │  ├─ /add \\\`[bug]\\\` ─ Tambah Wildcard
@@ -1817,97 +1812,6 @@ _— Tim GEO BOT SERVER_
         );
     }
     
-    return new Response("OK", { status: 200 });
-}
-
-    if (text.startsWith("/user")) {
-    try {
-        console.log("🔄 Processing /user command...");
-        
-        const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
-        const page = parseInt(text.split(" ")[1]) || 1;
-        const usersPerPage = 10;
-        const totalUsers = userChats.length;
-        const totalPages = Math.ceil(totalUsers / usersPerPage);
-        const start = (page - 1) * usersPerPage;
-        const end = start + usersPerPage;
-        const usersToShow = userChats.slice(start, end);
-
-        console.log(`📊 Users: ${totalUsers}, Page: ${page}, Total Pages: ${totalPages}`);
-
-        // Validate page number
-        if (page < 1 || page > totalPages) {
-            await this.sendMessage(chatId, 
-                `❌ Halaman tidak valid. Total halaman: ${totalPages}`,
-                { parse_mode: "Markdown" }
-            );
-            return new Response("OK", { status: 200 });
-        }
-
-        // Build response text
-        let responseText = `👥 *DAFTAR PENGGUNA BOT*\n\n`;
-        responseText += `📊 Total: ${totalUsers} users\n`;
-       //  responseText += `📄 Halaman: ${page}/${totalPages}\n`;
-        // responseText += `👀 Menampilkan: ${start + 1}-${Math.min(end, totalUsers)}\n\n`;
-        
-        responseText += "┌── 📋 USER ID ──┐\n";
-        
-        if (usersToShow.length === 0) {
-            responseText += "│   No users found   │\n";
-        } else {
-            usersToShow.forEach((userId, index) => {
-                const number = start + index + 1;
-                responseText += `│ ${number}. ${userId}\n`;
-            });
-        }
-        
-        responseText += "└────────────┘\n";
-
-        // Build simple pagination keyboard
-        const keyboard = [];
-        const navButtons = [];
-
-        if (page > 1) {
-            navButtons.push({ 
-                text: "◀️ Prev", 
-                callback_data: `user_page_${page - 1}` 
-            });
-        }
-
-        if (totalPages > 1) {
-            navButtons.push({ 
-                text: `${page}/${totalPages}`, 
-                callback_data: `user_page_info` 
-            });
-        }
-
-        if (page < totalPages) {
-            navButtons.push({ 
-                text: "Next ▶️", 
-                callback_data: `user_page_${page + 1}` 
-            });
-        }
-
-        if (navButtons.length > 0) {
-            keyboard.push(navButtons);
-        }
-
-        console.log("📤 Sending message...");
-        
-        await this.sendMessage(chatId, responseText, {
-            parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: keyboard }
-        });
-
-        console.log("✅ Message sent successfully");
-
-    } catch (error) {
-        console.error("❌ Error:", error);
-        await this.sendMessage(chatId, 
-            `❌ Error: ${error.message}`,
-            { parse_mode: "Markdown" }
-        );
-    }
     return new Response("OK", { status: 200 });
 }
 
@@ -2160,49 +2064,6 @@ return new Response("OK", { status: 200 });
       console.error("Error fetching IP list:", error);
       await this.editMessageText(` *Terjadi kesalahan saat mengambil daftar IP: ${error.message}*`, { chat_id: chatId, message_id: loadingMessage.result.message_id });
     }
-  }
-  async handleUserCallback(callbackQuery) {
-    const chatId = callbackQuery.message.chat.id;
-    const messageId = callbackQuery.message.message_id;
-    const data = callbackQuery.data;
-    const page = parseInt(data.split("_")[2]);
-    try {
-      const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
-      const usersPerPage = 10;
-      const totalUsers = userChats.length;
-      const totalPages = Math.ceil(totalUsers / usersPerPage);
-      const start = (page - 1) * usersPerPage;
-      const end = start + usersPerPage;
-      const usersToShow = userChats.slice(start, end);
-      let responseText = `*Daftar Pengguna*\n\n`;
-      responseText += `Total: ${totalUsers} pengguna\n`;
-      responseText += `Halaman: ${page}/${totalPages}\n\n`;
-      usersToShow.forEach((userId, index) => {
-        responseText += `${start + index + 1}. User ID: \`${userId}\`\n`;
-      });
-      responseText += `\n`;
-      const keyboard = { inline_keyboard: [] };
-      const row = [];
-      if (page > 1) {
-        row.push({ text: " Prev", callback_data: `user_page_${page - 1}` });
-      }
-      if (end < totalUsers) {
-        row.push({ text: "Next ", callback_data: `user_page_${page + 1}` });
-      }
-      if (row.length > 0) {
-        keyboard.inline_keyboard.push(row);
-      }
-      await this.editMessageText(responseText, {
-        chat_id: chatId,
-        message_id: messageId,
-        parse_mode: "Markdown",
-        reply_markup: keyboard.inline_keyboard.length > 0 ? keyboard : null
-      });
-    } catch (error) {
-      // Menangani kemungkinan eror saat mengedit pesan
-      console.error("Gagal menangani user callback:", error);
-    }
-    await this.answerCallbackQuery(callbackQuery.id);
   }
   async editMessageText(text, { chat_id, message_id, parse_mode, reply_markup }) {
     const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
@@ -3591,7 +3452,7 @@ const worker_default = {
       let bot;
       if (update.callback_query) {
         const data = update.callback_query.data;
-        if (data.startsWith("randomip_page_") || data.startsWith("cc_") || data.startsWith("user_page_")) {
+        if (data.startsWith("randomip_page_") || data.startsWith("cc_")) {
           bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
         } else if (data.startsWith("PROTOCOL|") || data.startsWith("SHOW_WILDCARD|") || data.startsWith("NOWILDCARD|") || data.startsWith("WILDCARD|") || data.startsWith("BACK|") || data.startsWith("BACK_WILDCARD|")) {
           bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
@@ -3602,7 +3463,7 @@ const worker_default = {
         const text = update.message.text.trim();
         if (text.startsWith("/config") || text.startsWith("rotate ") || text.startsWith("/randomconfig") || text.startsWith("/listwildcard")) {
           bot = new TelegramBot(token, "https://api.telegram.org", ownerId, globalBot);
-        } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/user") || text.startsWith("/proxyip")) {
+        } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/proxyip")) {
           bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
         } else if (text.match(/^(\d{1,3}(?:\.\d{1,3}){3}):?(\d{1,5})?$/) && !text.includes("://")) {
           bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
