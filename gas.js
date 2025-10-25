@@ -1089,6 +1089,43 @@ const Converterbot = class {
     this.env = env;
   }
   async handleUpdate(update) {
+    if (update.callback_query && update.callback_query.data.startsWith("userlist_page_")) {
+      const chatId = update.callback_query.message.chat.id;
+      const messageId = update.callback_query.message.message_id;
+      const page = parseInt(update.callback_query.data.split("_")[2], 10);
+      const allUsers = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+      const totalUsers = allUsers.length;
+      const pageSize = 5;
+      const totalPages = Math.ceil(totalUsers / pageSize);
+      const start = page * pageSize;
+      const end = start + pageSize;
+      const pageUsers = allUsers.slice(start, end);
+      const userListText = pageUsers.map((user, index) => {
+        const userNumber = start + index + 1;
+        if (typeof user === "object" && user.id) {
+          return `${userNumber}. ID: ${user.id} | Username: @${user.username || "N/A"}`;
+        }
+        return `${userNumber}. ID: ${user}`;
+      }).join("\n");
+      const messageText = `Total Pengguna: ${totalUsers}\nHalaman ${page + 1} dari ${totalPages}\n\n${userListText}`;
+      const keyboard = [];
+      const row = [];
+      if (page > 0) {
+        row.push({ text: "◀️ Prev", callback_data: `userlist_page_${page - 1}` });
+      }
+      if (end < totalUsers) {
+        row.push({ text: "Next ▶️", callback_data: `userlist_page_${page + 1}` });
+      }
+      if (row.length > 0) {
+        keyboard.push(row);
+      }
+      await this.editMessageText(chatId, messageId, messageText, {
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
+      return new Response("OK", { status: 200 });
+    }
     if (!update.message)
       return new Response("OK", { status: 200 });
     const chatId = update.message.chat.id;
@@ -1103,47 +1140,164 @@ const Converterbot = class {
       }
       return new Response("OK", { status: 200 });
     }
+    
+    if (text.startsWith("/userlist") && chatId.toString() === this.ownerId.toString()) {
+  const allUsers = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+  const totalUsers = allUsers.length;
+  
+  if (totalUsers === 0) {
+    await this.sendMessage(chatId, "📭 Belum ada pengguna yang terdaftar.");
+    return new Response("OK", { status: 200 });
+  }
+
+  const pageSize = 5;
+  const totalPages = Math.ceil(totalUsers / pageSize);
+  const page = 0;
+  const start = page * pageSize;
+  const end = start + pageSize;
+  const pageUsers = allUsers.slice(start, end);
+
+  const userListText = pageUsers.map((user, index) => {
+    const userNumber = start + index + 1;
+    if (typeof user === "object" && user.id) {
+      return `▫️ **${userNumber}.** ID: \`${user.id}\` | 👤 @${user.username || "N/A"}`;
+    }
+    return `▫️ **${userNumber}.** ID: \`${user}\``;
+  }).join("\n");
+
+  const messageText = `👥 **DAFTAR PENGGUNA**\n\n📊 **Total:** ${totalUsers} pengguna\n📄 **Halaman:** ${page + 1}/${totalPages}\n\n${userListText}`;
+
+  const keyboard = [];
+  const row = [];
+  
+  if (page > 0) {
+    row.push({ text: "◀️ Sebelumnya", callback_data: `userlist_page_${page - 1}` });
+  }
+  if (end < totalUsers) {
+    row.push({ text: "Selanjutnya ▶️", callback_data: `userlist_page_${page + 1}` });
+  }
+  
+  if (row.length > 0) {
+    keyboard.push(row);
+  }
+
+  await this.sendMessage(chatId, messageText, {
+    reply_markup: {
+      inline_keyboard: keyboard
+    },
+    parse_mode: "Markdown"
+  });
+  
+  return new Response("OK", { status: 200 });
+}
+    
     if (text.startsWith("/converter")) {
+  await this.sendMessage(
+    chatId,
+    `🔄 *Konverter Konfigurasi Geo Project Bot*
+
+📩 **Kirimkan link konfigurasi V2Ray** dan saya akan mengubahnya ke berbagai format yang tersedia.
+
+📋 **Format yang didukung:**
+• VLESS: \`vless://...\`
+• VMess: \`vmess://...\`
+• Trojan: \`trojan://...\`
+• Shadowsocks: \`ss://...\`
+
+⚡ **Hasil konversi:**
+✅ Singbox
+✅ Nekobox  
+✅ Clash
+
+📝 **Catatan penting:**
+• Maksimal 10 link per permintaan
+• Disarankan menggunakan *Singbox versi 1.10.3* atau *1.11.8*
+• Proses konversi otomatis dan cepat
+
+🚀 **Cara penggunaan:**
+Kirim langsung link konfigurasi Anda di chat ini!`,
+    { 
+      reply_to_message_id: messageId,
+      parse_mode: "Markdown"
+    }
+  );
+  return new Response("OK", { status: 200 });
+}
+
+if (text.includes("://")) {
+  try {
+    const links = text.split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.includes("://"))
+      .slice(0, 10);
+    
+    if (links.length === 0) {
       await this.sendMessage(
-        chatId,
-        ` *Geo Project Bot*
-
-Kirimkan link konfigurasi V2Ray dan saya *SPIDERMAN* akan mengubahnya ke format *Singbox*, *Nekobox*, dan *Clash*.
-
-Contoh:
-\`vless://...\`
-\`vmess://...\`
-\`trojan://...\`
-\`ss://...\`
-
-Catatan:
-- Maksimal 10 link per permintaan.
-- Disarankan menggunakan *Singbox versi 1.10.3* atau *1.11.8*.`,
-        { reply_to_message_id: messageId }
+        chatId, 
+        "❌ *Tidak ada link valid yang ditemukan!*\n\nSilakan kirim link dengan format:\n• VLESS: \\`vless://...\\`\n• VMess: \\`vmess://...\\`\n• Trojan: \\`trojan://...\\`\n• Shadowsocks: \\`ss://...\\`",
+        { 
+          reply_to_message_id: messageId,
+          parse_mode: "Markdown"
+        }
       );
       return new Response("OK", { status: 200 });
     }
-    if (text.includes("://")) {
-      try {
-        const links = text.split("\n").map((line) => line.trim()).filter((line) => line.includes("://")).slice(0, 10);
-        if (links.length === 0) {
-          await this.sendMessage(chatId, " Tidak ada link valid yang ditemukan. Kirimkan link VMess, VLESS, Trojan, atau Shadowsocks.", { reply_to_message_id: messageId });
-          return new Response("OK", { status: 200 });
-        }
-        const clashConfig = generateClashConfig(links, true);
-        const nekoboxConfig = generateNekoboxConfig(links, true);
-        const singboxConfig = generateSingboxConfig(links, true);
-        await this.sendDocument(chatId, clashConfig, "clash.yaml", "text/yaml", { reply_to_message_id: messageId });
-        await this.sendDocument(chatId, nekoboxConfig, "nekobox.json", "application/json", { reply_to_message_id: messageId });
-        await this.sendDocument(chatId, singboxConfig, "singbox.bpf", "application/json", { reply_to_message_id: messageId });
-      } catch (error) {
-        console.error("Error processing links:", error);
-        await this.sendMessage(chatId, `Error: ${error.message}`, { reply_to_message_id: messageId });
+
+    // Menampilkan pesan proses
+    await this.sendMessage(
+      chatId,
+      `🔄 *Memproses ${links.length} link...*\n⏳ Mohon tunggu sebentar...`,
+      { 
+        reply_to_message_id: messageId,
+        parse_mode: "Markdown"
       }
-    } else {
-    }
-    return new Response("OK", { status: 200 });
+    );
+
+    const clashConfig = generateClashConfig(links, true);
+    const nekoboxConfig = generateNekoboxConfig(links, true);
+    const singboxConfig = generateSingboxConfig(links, true);
+
+    // Kirim file konfigurasi
+    await this.sendDocument(chatId, clashConfig, "config_clash.yaml", "text/yaml", { 
+      reply_to_message_id: messageId,
+      caption: "⚡ *Konfigurasi Clash*"
+    });
+    
+    await this.sendDocument(chatId, nekoboxConfig, "config_nekobox.json", "application/json", { 
+      reply_to_message_id: messageId,
+      caption: "📱 *Konfigurasi Nekobox*"
+    });
+    
+    await this.sendDocument(chatId, singboxConfig, "config_singbox.json", "application/json", { 
+      reply_to_message_id: messageId,
+      caption: "🎯 *Konfigurasi Singbox*"
+    });
+
+    // Pesan sukses
+    await this.sendMessage(
+      chatId,
+      `✅ *Konversi Berhasil!*\n\n📦 **${links.length} link** telah dikonversi ke 3 format berbeda:\n\n• 🎯 Singbox\n• 📱 Nekobox\n• ⚡ Clash\n\n🚀 **Selamat menikmati!**`,
+      { 
+        reply_to_message_id: messageId,
+        parse_mode: "Markdown"
+      }
+    );
+
+  } catch (error) {
+    console.error("Error processing links:", error);
+    await this.sendMessage(
+      chatId, 
+      `❌ *Terjadi Kesalahan!*\n\nError: ${error.message}\n\nPastikan link yang dikirim dalam format yang benar dan coba lagi.`,
+      { 
+        reply_to_message_id: messageId,
+        parse_mode: "Markdown"
+      }
+    );
   }
+}
+return new Response("OK", { status: 200 });
+    }
+    
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
     const body = {
@@ -1158,6 +1312,21 @@ Catatan:
       body: JSON.stringify(body)
     });
     return response.json();
+  }
+  async editMessageText(chatId, messageId, text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "Markdown",
+      ...options
+    };
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
   }
   async sendDocument(chatId, content, filename, mimeType, options = {}) {
     const formData = new FormData();
@@ -1642,7 +1811,8 @@ const TelegramBotku = class {
 ├─ 🛠️ *Tools & Info*
 │  ├─ /proxy ─ Generate Proxy IPs
 │  ├─ /stats ─ Statistik Penggunaan
-│  └─ /findproxy ─ Tutorial Cari Proxy
+│  ├─ /findproxy ─ Tutorial Cari Proxy
+│  └─ /userlist ─ Daftar Pengguna Bot
 │
 ├─ 👤 *Manajemen Wildcard*
 │  ├─ /add \\\`[bug]\\\` ─ Tambah Wildcard
@@ -1661,6 +1831,7 @@ const TelegramBotku = class {
   await this.sendMessage(chatId, menuText, { parse_mode: "Markdown" });
   return new Response("OK", { status: 200 });
 }
+
     if (text === "/proxyip") {
       await this.handleProxyipCommand(chatId);
       return new Response("OK", { status: 200 });
@@ -1953,36 +2124,41 @@ _— Tim GEO BOT SERVER_
         chat_id: chatId,
         photo: imageUrl,
         caption: `
-
-                 
-
- 👋 *Selamat Datang di Geo Bot Server!*
+✨━━━━━━━━━━━━━━━━━✨
+🌟 **Welcome to Geo Bot Server!** 🌟
+✨━━━━━━━━━━━━━━━━━✨
 
-Bot ini dapat membantu Anda memeriksa status proxy dan membuat konfigurasi V2Ray.
+🤖 *Tentang Bot:*
+Bot ini dirancang untuk membantu Anda memeriksa status proxy dan membuat konfigurasi V2Ray dengan mudah.
 
-*Cara Penggunaan:*
-1. Kirim alamat IP dan port (opsional, default 443).
-2. Tunggu beberapa detik untuk hasilnya.
+📋 *Cara Penggunaan:*
+1️⃣ Kirim alamat IP dan port (opsional, default: 443)
+2️⃣ Tunggu beberapa detik untuk proses pengecekan
+3️⃣ Dapatkan hasil status dan konfigurasi
 
-*Format yang Diterima:*
+🔧 *Format Input yang Diterima:*
 • \`176.97.78.80\`
 • \`176.97.78.80:2053\`
 
-Ketik /menu untuk melihat semua perintah yang tersedia.
+📂 *Perintah Lainnya:*
+Ketik \`/menu\` untuk melihat semua perintah yang tersedia.
 
-⚠️ *Catatan:*
-- Jika status proxy *DEAD*, konfigurasi tidak akan dibuat.
+⚠️ *Penting:*
+- Jika status proxy *DEAD*, konfigurasi tidak akan dibuat
+- Pastikan format input sesuai untuk hasil terbaik
 
-🔗 *Tautan Penting:*
+🔗 *Tautan Terkait:*
 🌐 [WEB VPN TUNNEL](https://joss.krikkrik.web.id)
 📺 [CHANNEL VPS & Script](https://t.me/testikuy_mang)
 👥 [GRUP PHREAKER](https://t.me/+Q1ARd8ZsAuM2xB6-)
-
+✨━━━━━━━━━━━━━━━━━✨
+
+*Terima kasih telah menggunakan layanan kami!* 🚀
 `.trim(),
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: " GEO PROJECT", url: "https://t.me/sampiiiiu" }]
+            [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
           ]
         }
       })
@@ -3426,11 +3602,14 @@ const worker_default = {
     try {
       const update = await request.json();
       if (update.message) {
-        const chatId = update.message.chat.id;
-        const currentUsers = await env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
-        if (!currentUsers.includes(chatId)) {
-          currentUsers.push(chatId);
-          await env.GEO_DB.put("broadcast_users", JSON.stringify(currentUsers));
+        const chat = update.message.chat;
+        const chatId = chat.id;
+        const username = chat.username || chat.first_name || "N/A";
+        const allUsers = await env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+        const userExists = allUsers.some((user) => (typeof user === "object" ? user.id : user) === chatId);
+        if (!userExists) {
+          allUsers.push({ id: chatId, username });
+          await env.GEO_DB.put("broadcast_users", JSON.stringify(allUsers));
         }
       }
       const token = "8260084773:AAG3eaP0FbYg7FizqSeAre8GHcCOOSv1oUc";
@@ -3452,7 +3631,9 @@ const worker_default = {
       let bot;
       if (update.callback_query) {
         const data = update.callback_query.data;
-        if (data.startsWith("randomip_page_") || data.startsWith("cc_")) {
+        if (data.startsWith("userlist_page_")) {
+          bot = new Converterbot(token, "https://api.telegram.org", ownerId, env);
+        } else if (data.startsWith("randomip_page_") || data.startsWith("cc_")) {
           bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
         } else if (data.startsWith("PROTOCOL|") || data.startsWith("SHOW_WILDCARD|") || data.startsWith("NOWILDCARD|") || data.startsWith("WILDCARD|") || data.startsWith("BACK|") || data.startsWith("BACK_WILDCARD|")) {
           bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
@@ -3471,7 +3652,7 @@ const worker_default = {
           bot = new TelegramWildcardBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/help") || text.split(/\s+/).some((num) => (num.startsWith("08") || num.startsWith("628")) && num.length >= 10 && num.length <= 14)) {
           bot = new CekkuotaBotku(token, "https://api.telegram.org", ownerId, globalBot);
-        } else if (text.startsWith("/broadcast") || text.startsWith("/converter") || text.includes("://")) {
+        } else if (text.startsWith("/broadcast") || text.startsWith("/userlist") || text.startsWith("/converter") || text.includes("://")) {
           bot = new Converterbot(token, "https://api.telegram.org", ownerId, env);
         }
       }
