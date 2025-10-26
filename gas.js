@@ -1102,12 +1102,27 @@ const Converterbot = class {
       const end = start + pageSize;
       const pageUsers = allUsers.slice(start, end);
       
-      // Format user list dengan emoji yang lebih menarik
+      // Format daftar pengguna sesuai gaya yang diminta
       const userListText = pageUsers.map((user, index) => {
         const userNumber = start + index + 1;
         const userId = typeof user === "object" && user.id ? user.id : user;
-        return `✨ **${userNumber}.** ID: \`${userId}\``;
-      }).join("\n");
+        const username = typeof user === "object" ? user.username : null;
+        
+        // Fungsi untuk melepaskan karakter Markdown
+        const escapeMarkdown = (text) => {
+          if (text === null || typeof text === 'undefined') {
+            return '';
+          }
+          return text.toString().replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+        };
+        
+        let userLine = `👤 **${userNumber}.**`;
+        if (username && username !== "N/A") {
+          userLine += ` ${escapeMarkdown(username)}`;
+        }
+        const idLine = `🆔 ID: \`${userId}\``;
+        return `${userLine}\n${idLine}`;
+      }).join("\n\n");
 
       // Format message dengan border dan layout yang lebih rapi
       const messageText = `🎯 **DAFTAR PENGGUNA**\n
@@ -1165,8 +1180,23 @@ ${userListText}`;
       const userListText = pageUsers.map((user, index) => {
         const userNumber = start + index + 1;
         const userId = typeof user === "object" && user.id ? user.id : user;
-        return `✨ **${userNumber}.** ID: \`${userId}\``;
-      }).join("\n");
+        const username = typeof user === "object" ? user.username : null;
+        
+        // Fungsi untuk melepaskan karakter Markdown
+        const escapeMarkdown = (text) => {
+          if (text === null || typeof text === 'undefined') {
+            return '';
+          }
+          return text.toString().replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+        };
+        
+        let userLine = `👤 **${userNumber}.**`;
+        if (username && username !== "N/A") {
+          userLine += ` ${escapeMarkdown(username)}`;
+        }
+        const idLine = `🆔 ID: \`${userId}\``;
+        return `${userLine}\n${idLine}`;
+      }).join("\n\n");
 
       const messageText = `🎯 **DAFTAR PENGGUNA**\n
 ╔═══════════════════╗
@@ -1248,12 +1278,27 @@ ${userListText}`;
         const end = start + pageSize;
         const pageUsers = allUsers.slice(start, end);
         
-        // Format user list yang lebih menarik
+        // Format daftar pengguna sesuai gaya yang diminta
         const userListText = pageUsers.map((user, index) => {
           const userNumber = start + index + 1;
-          const userId = typeof user === "object" && user.id ? user.id : user;
-          return `✨ **${userNumber}.** ID: \`${userId}\``;
-        }).join("\n");
+          const userId = typeof user === "object" ? user.id : user;
+          const username = typeof user === "object" ? user.username : null;
+          
+          // Fungsi untuk melepaskan karakter Markdown
+          const escapeMarkdown = (text) => {
+            if (text === null || typeof text === 'undefined') {
+              return '';
+            }
+            return text.toString().replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+          };
+          
+          let userLine = `👤 **${userNumber}.**`;
+          if (username && username !== "N/A") {
+            userLine += ` ${escapeMarkdown(username)}`;
+          }
+          const idLine = `🆔 ID: \`${userId}\``;
+          return `${userLine}\n${idLine}`;
+        }).join("\n\n");
 
         // Message dengan layout yang lebih profesional
         const messageText = `🎯 **DAFTAR PENGGUNA**\n
