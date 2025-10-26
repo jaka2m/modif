@@ -1077,7 +1077,6 @@ function generateSingboxConfig(links, isFullConfig = false) {
 __name(generateSingboxConfig, "generateSingboxConfig");
 
 // src/converter/converter.js
-// src/converter/converter.js
 const Converterbot = class {
   static {
     __name(this, "Converterbot");
@@ -1088,112 +1087,210 @@ const Converterbot = class {
     this.ownerId = ownerId;
     this.env = env;
   }
+
   async handleUpdate(update) {
+    // Handle pagination callback
     if (update.callback_query && update.callback_query.data.startsWith("userlist_page_")) {
       const chatId = update.callback_query.message.chat.id;
       const messageId = update.callback_query.message.message_id;
       const page = parseInt(update.callback_query.data.split("_")[2], 10);
       const allUsers = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
       const totalUsers = allUsers.length;
-      const pageSize = 5;
+      const pageSize = 10;
       const totalPages = Math.ceil(totalUsers / pageSize);
       const start = page * pageSize;
       const end = start + pageSize;
       const pageUsers = allUsers.slice(start, end);
+      
+      // Format user list dengan emoji yang lebih menarik
       const userListText = pageUsers.map((user, index) => {
         const userNumber = start + index + 1;
-        if (typeof user === "object" && user.id) {
-          return `${userNumber}. ID: ${user.id} | Username: @${user.username || "N/A"}`;
-        }
-        return `${userNumber}. ID: ${user}`;
+        const userId = typeof user === "object" && user.id ? user.id : user;
+        return `✨ **${userNumber}.** ID: \`${userId}\``;
       }).join("\n");
-      const messageText = `Total Pengguna: ${totalUsers}\nHalaman ${page + 1} dari ${totalPages}\n\n${userListText}`;
+
+      // Format message dengan border dan layout yang lebih rapi
+      const messageText = `🎯 **DAFTAR PENGGUNA**\n
+╔═══════════════════╗
+📊 **Total:** ${totalUsers} pengguna
+📄 **Halaman:** ${page + 1}/${totalPages}
+╚═══════════════════╝
+
+${userListText}`;
+
+      // Keyboard dengan emoji yang lebih variatif
       const keyboard = [];
       const row = [];
+      
       if (page > 0) {
-        row.push({ text: "◀️ Prev", callback_data: `userlist_page_${page - 1}` });
+        row.push({ text: "⬅️ Prev", callback_data: `userlist_page_${page - 1}` });
       }
-      if (end < totalUsers) {
-        row.push({ text: "Next ▶️", callback_data: `userlist_page_${page + 1}` });
+      if (page < totalPages - 1) {
+        row.push({ text: "Next ➡️", callback_data: `userlist_page_${page + 1}` });
       }
+      
       if (row.length > 0) {
         keyboard.push(row);
       }
+
+      // Hanya tombol refresh saja
+      keyboard.push([
+        { text: "🔄 Refresh", callback_data: `userlist_page_0` }
+      ]);
+
       await this.editMessageText(chatId, messageId, messageText, {
         reply_markup: {
           inline_keyboard: keyboard
-        }
+        },
+        parse_mode: "Markdown"
       });
+      
+      await this.answerCallbackQuery(update.callback_query.id);
       return new Response("OK", { status: 200 });
     }
-    if (!update.message)
+
+    // Handle refresh callback (kembali ke halaman 0)
+    if (update.callback_query && update.callback_query.data === "userlist_page_0") {
+      const chatId = update.callback_query.message.chat.id;
+      const messageId = update.callback_query.message.message_id;
+      const page = 0;
+      const allUsers = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+      const totalUsers = allUsers.length;
+      const pageSize = 10;
+      const totalPages = Math.ceil(totalUsers / pageSize);
+      const start = page * pageSize;
+      const end = start + pageSize;
+      const pageUsers = allUsers.slice(start, end);
+      
+      const userListText = pageUsers.map((user, index) => {
+        const userNumber = start + index + 1;
+        const userId = typeof user === "object" && user.id ? user.id : user;
+        return `✨ **${userNumber}.** ID: \`${userId}\``;
+      }).join("\n");
+
+      const messageText = `🎯 **DAFTAR PENGGUNA**\n
+╔═══════════════════╗
+📊 **Total:** ${totalUsers} pengguna
+📄 **Halaman:** ${page + 1}/${totalPages}
+╚═══════════════════╝
+
+${userListText}`;
+
+      const keyboard = [];
+      const row = [];
+      
+      if (page > 0) {
+        row.push({ text: "⬅️ Prev", callback_data: `userlist_page_${page - 1}` });
+      }
+      if (page < totalPages - 1) {
+        row.push({ text: "Next ➡️", callback_data: `userlist_page_${page + 1}` });
+      }
+      
+      if (row.length > 0) {
+        keyboard.push(row);
+      }
+
+      keyboard.push([
+        { text: "🔄 Refresh", callback_data: `userlist_page_0` }
+      ]);
+
+      await this.editMessageText(chatId, messageId, messageText, {
+        reply_markup: {
+          inline_keyboard: keyboard
+        },
+        parse_mode: "Markdown"
+      });
+      
+      await this.answerCallbackQuery(update.callback_query.id);
       return new Response("OK", { status: 200 });
+    }
+
+    if (!update.message) return new Response("OK", { status: 200 });
+    
     const chatId = update.message.chat.id;
     const text = update.message.text || "";
     const messageId = update.message.message_id;
+
+    // Handle broadcast command
     if (text.startsWith("/broadcast") && chatId.toString() === this.ownerId.toString()) {
       const broadcastMessage = text.substring("/broadcast ".length).trim();
       if (broadcastMessage) {
         await this.sendBroadcastMessage(broadcastMessage);
       } else {
-        await this.sendMessage(chatId, "Contoh penggunaan: `/broadcast Pesan yang ingin Anda siarkan.`");
+        await this.sendMessage(chatId, "📢 **Cara Penggunaan Broadcast:**\n\n`/broadcast Pesan yang ingin Anda siarkan.`\n\n💡 *Contoh:* `/broadcast Halo semua! Ini pesan broadcast.`");
       }
       return new Response("OK", { status: 200 });
     }
     
+    // Handle userlist command
     if (text.startsWith("/userlist")) {
-      const loadingMessage = await this.sendMessage(chatId, "Sedang memproses...");
+      // Loading message dengan emoji yang lebih menarik
+      const loadingMessage = await this.sendMessage(chatId, "⏳ *Memuat daftar pengguna...*", { parse_mode: "Markdown" });
       let messageIdToDelete;
+      
       if (loadingMessage && loadingMessage.result) {
         messageIdToDelete = loadingMessage.result.message_id;
       }
 
       try {
-          const allUsers = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
-          const totalUsers = allUsers.length;
-          
-          if (totalUsers === 0) {
-            await this.sendMessage(chatId, "📭 Belum ada pengguna yang terdaftar.");
-            return new Response("OK", { status: 200 });
-          }
+        const allUsers = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+        const totalUsers = allUsers.length;
         
-          const pageSize = 5;
-          const totalPages = Math.ceil(totalUsers / pageSize);
-          const page = 0;
-          const start = page * pageSize;
-          const end = start + pageSize;
-          const pageUsers = allUsers.slice(start, end);
+        if (totalUsers === 0) {
+          await this.sendMessage(chatId, "📭 *Belum ada pengguna yang terdaftar.*\n\n💡 *Pengguna akan otomatis terdaftar ketika berinteraksi dengan bot.*", { parse_mode: "Markdown" });
+          return new Response("OK", { status: 200 });
+        }
         
-          const userListText = pageUsers.map((user, index) => {
-            const userNumber = start + index + 1;
-            if (typeof user === "object" && user.id) {
-              return `▫️ **${userNumber}.** ID: \`${user.id}\` | 👤 @${user.username || "N/A"}`;
-            }
-            return `▫️ **${userNumber}.** ID: \`${user}\``;
-          }).join("\n");
+        const pageSize = 10;
+        const totalPages = Math.ceil(totalUsers / pageSize);
+        const page = 0;
+        const start = page * pageSize;
+        const end = start + pageSize;
+        const pageUsers = allUsers.slice(start, end);
         
-          const messageText = `👥 **DAFTAR PENGGUNA**\n\n📊 **Total:** ${totalUsers} pengguna\n📄 **Halaman:** ${page + 1}/${totalPages}\n\n${userListText}`;
+        // Format user list yang lebih menarik
+        const userListText = pageUsers.map((user, index) => {
+          const userNumber = start + index + 1;
+          const userId = typeof user === "object" && user.id ? user.id : user;
+          return `✨ **${userNumber}.** ID: \`${userId}\``;
+        }).join("\n");
+
+        // Message dengan layout yang lebih profesional
+        const messageText = `🎯 **DAFTAR PENGGUNA**\n
+╔═══════════════════╗
+📊 **Total:** ${totalUsers} pengguna
+📄 **Halaman:** ${page + 1}/${totalPages}
+╚═══════════════════╝
+
+${userListText}`;
+
+        // Keyboard dengan styling yang lebih baik
+        const keyboard = [];
+        const row = [];
         
-          const keyboard = [];
-          const row = [];
-          
-          if (page > 0) {
-            row.push({ text: "◀️ Sebelumnya", callback_data: `userlist_page_${page - 1}` });
-          }
-          if (end < totalUsers) {
-            row.push({ text: "Selanjutnya ▶️", callback_data: `userlist_page_${page + 1}` });
-          }
-          
-          if (row.length > 0) {
-            keyboard.push(row);
-          }
+        if (page > 0) {
+          row.push({ text: "⬅️ Prev", callback_data: `userlist_page_${page - 1}` });
+        }
+        if (page < totalPages - 1) {
+          row.push({ text: "Next ➡️", callback_data: `userlist_page_${page + 1}` });
+        }
         
-          await this.sendMessage(chatId, messageText, {
-            reply_markup: {
-              inline_keyboard: keyboard
-            },
-            parse_mode: "Markdown"
-          });
+        if (row.length > 0) {
+          keyboard.push(row);
+        }
+
+        // Hanya tombol refresh saja
+        keyboard.push([
+          { text: "🔄 Refresh", callback_data: `userlist_page_0` }
+        ]);
+
+        await this.sendMessage(chatId, messageText, {
+          reply_markup: {
+            inline_keyboard: keyboard
+          },
+          parse_mode: "Markdown"
+        });
+        
       } finally {
         if (messageIdToDelete) {
           await this.deleteMessage(chatId, messageIdToDelete);
@@ -1201,7 +1298,7 @@ const Converterbot = class {
       }
       return new Response("OK", { status: 200 });
     }
-    
+  
     if (text.startsWith("/converter")) {
   await this.sendMessage(
     chatId,
@@ -1363,6 +1460,16 @@ return new Response("OK", { status: 200 });
         body: formData
       }
     );
+    return response.json();
+  }
+  async answerCallbackQuery(callbackQueryId, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/answerCallbackQuery`;
+    const body = { callback_query_id: callbackQueryId, ...options };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
     return response.json();
   }
   async sendBroadcastMessage(message) {
@@ -3768,8 +3875,41 @@ const SublinkBuilderBot = class {
               inline_keyboard: [
                 [{ text: "All Countries", callback_data: "sublink_country_all" }],
                 [{ text: "Random", callback_data: "sublink_country_random" }],
-                [{ text: "Indonesia (ID)", callback_data: "sublink_country_id" }, { text: "Singapore (SG)", callback_data: "sublink_country_sg" }],
-                 [{ text: "United States (US)", callback_data: "sublink_country_us" }, { text: "Japan (JP)", callback_data: "sublink_country_jp" }]
+                [
+                  { text: "Indonesia (ID)", callback_data: "sublink_country_id" },
+                  { text: "Singapore (SG)", callback_data: "sublink_country_sg" },
+                  { text: "Malaysia (MY)", callback_data: "sublink_country_my" }
+                ],
+                [
+                  { text: "United States (US)", callback_data: "sublink_country_us" },
+                  { text: "Japan (JP)", callback_data: "sublink_country_jp" },
+                  { text: "South Korea (KR)", callback_data: "sublink_country_kr" }
+                ],
+                [
+                  { text: "Thailand (TH)", callback_data: "sublink_country_th" },
+                  { text: "Vietnam (VN)", callback_data: "sublink_country_vn" },
+                  { text: "Philippines (PH)", callback_data: "sublink_country_ph" }
+                ],
+                [
+                  { text: "United Kingdom (GB)", callback_data: "sublink_country_gb" },
+                  { text: "Germany (DE)", callback_data: "sublink_country_de" },
+                  { text: "France (FR)", callback_data: "sublink_country_fr" }
+                ],
+                [
+                  { text: "Brazil (BR)", callback_data: "sublink_country_br" },
+                  { text: "India (IN)", callback_data: "sublink_country_in" },
+                  { text: "Australia (AU)", callback_data: "sublink_country_au" }
+                ],
+                [
+                  { text: "Canada (CA)", callback_data: "sublink_country_ca" },
+                  { text: "Turkey (TR)", callback_data: "sublink_country_tr" },
+                  { text: "Netherlands (NL)", callback_data: "sublink_country_nl" }
+                ],
+                [
+                  { text: "Taiwan (TW)", callback_data: "sublink_country_tw" },
+                  { text: "Hong Kong (HK)", callback_data: "sublink_country_hk" },
+                  { text: "Russia (RU)", callback_data: "sublink_country_ru" }
+                ]
               ]
             };
             await this.sendMessage(chatId, "Pilih negara:", { reply_markup: keyboard });
@@ -3825,8 +3965,26 @@ const SublinkBuilderBot = class {
         await this.editMessageText(chatId, messageId, "Silakan kirimkan bug host Anda (contoh: ava.game.naver.com):");
       } else if (step === 'country' && state.step === 'country') {
         state.country = value;
+        
+        // Simpan messageId yang akan dihapus nanti
+        state.processingMessageId = messageId;
+        
         await this.editMessageText(chatId, messageId, "Sedang memproses permintaan Anda...");
-        const url = `https://joss.krikkrik.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
+        
+        // Build URL berdasarkan pilihan country
+        let url;
+        if (state.country === 'all') {
+          // Untuk "All Countries", tidak sertakan parameter country sama sekali
+          url = `https://joss.krikkrik.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
+        } else if (state.country === 'random') {
+          // Untuk "Random", gunakan parameter country=random
+          url = `https://joss.krikkrik.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
+        } else {
+          // Untuk country spesifik, gunakan parameter country dengan kode negara
+          url = `https://joss.krikkrik.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
+        }
+        
+        console.log(`Mengakses URL: ${url}`); // Untuk debugging
         
         try {
           const response = await fetch(url);
@@ -3834,9 +3992,53 @@ const SublinkBuilderBot = class {
             throw new Error(`Gagal mengambil data dari URL: ${response.statusText}`);
           }
           const content = await response.text();
-          await this.sendDocument(chatId, content, "sublink.txt", "text/plain", { caption: `Berikut adalah link Sub Anda:\n${url}` });
+          
+          // Cek jika content kosong atau error
+          if (!content || content.trim() === '') {
+            throw new Error('Tidak ada data yang diterima dari server');
+          }
+          
+          // Buat caption dengan format link yang bisa diklik
+          let countryDisplay;
+          if (state.country === 'all') {
+            countryDisplay = 'All Countries';
+          } else if (state.country === 'random') {
+            countryDisplay = 'Random Country';
+          } else {
+            countryDisplay = state.country.toUpperCase();
+          }
+
+          const caption = `🔗 <b>Sub Link Berhasil Dibuat!</b>
+
+📱 <b>Aplikasi:</b> <code>${state.app}</code>
+🔧 <b>Tipe:</b> <code>${state.type}</code>
+🐛 <b>Bug:</b> <code>${state.bug}</code>
+🔒 <b>TLS:</b> <code>${state.tls}</code>
+🎯 <b>Wildcard:</b> <code>${state.wildcard}</code>
+📊 <b>Limit:</b> <code>${state.limit}</code>
+🌍 <b>Country:</b> <code>${countryDisplay}</code>
+
+👇 <b>Klik link di bawah untuk copy:</b>
+<a href="${url}">${url}</a>`;
+          
+          // Hapus pesan "Sedang memproses permintaan Anda..."
+          await this.deleteMessage(chatId, state.processingMessageId);
+          
+          // Kirim dokumen dengan hasil
+          await this.sendDocument(chatId, content, "sublink.txt", "text/plain", { 
+            caption: caption,
+            parse_mode: "HTML"
+          });
         } catch (error) {
-          await this.sendMessage(chatId, `Terjadi kesalahan: ${error.message}`);
+          console.error('Error:', error);
+          
+          // Hapus pesan "Sedang memproses permintaan Anda..." meski ada error
+          await this.deleteMessage(chatId, state.processingMessageId);
+          
+          // Kirim pesan error
+          await this.sendMessage(chatId, `❌ <b>Terjadi Kesalahan</b>\n\n${error.message}\n\nSilakan coba lagi dengan parameter yang berbeda.`, {
+            parse_mode: "HTML"
+          });
         } finally {
           sublinkState.delete(chatId);
         }
@@ -3889,6 +4091,9 @@ const SublinkBuilderBot = class {
     if (options.caption) {
       formData.append("caption", options.caption);
     }
+    if (options.parse_mode) {
+      formData.append("parse_mode", options.parse_mode);
+    }
     const response = await fetch(
       `${this.apiUrl}/bot${this.token}/sendDocument`,
       {
@@ -3899,13 +4104,22 @@ const SublinkBuilderBot = class {
     return response.json();
   }
   async deleteMessage(chatId, messageId) {
-    const url = `${this.apiUrl}/bot${this.token}/deleteMessage`;
-    const body = { chat_id: chatId, message_id: messageId };
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
+    try {
+      const url = `${this.apiUrl}/bot${this.token}/deleteMessage`;
+      const body = { chat_id: chatId, message_id: messageId };
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      if (!result.ok) {
+        console.warn('Gagal menghapus pesan:', result);
+      }
+      return result;
+    } catch (error) {
+      console.error('Error saat menghapus pesan:', error);
+    }
   }
 };
 
