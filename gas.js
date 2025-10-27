@@ -1240,6 +1240,9 @@ ${userListText}`;
     const chatId = update.message.chat.id;
     const text = update.message.text || "";
     const messageId = update.message.message_id;
+    const message_thread_id = update.message.message_thread_id;
+
+    const options = message_thread_id ? { message_thread_id } : {};
 
     // Handle broadcast command
     if (text.startsWith("/broadcast") && chatId.toString() === this.ownerId.toString()) {
@@ -1255,9 +1258,9 @@ ${userListText}`;
       } else {
         const broadcastMessage = text.substring("/broadcast ".length).trim();
         if (broadcastMessage) {
-          await this.sendBroadcastMessage(broadcastMessage);
+          await this.sendBroadcastMessage(broadcastMessage, options);
         } else {
-          await this.sendMessage(chatId, "📢 **Cara Penggunaan Broadcast:**\n\n`/broadcast Pesan yang ingin Anda siarkan.`\n\n💡 *Contoh:* `/broadcast Halo semua! Ini pesan broadcast.`\n\n🖼️ **Untuk mengirim media:** Balas gambar atau video dengan `/broadcast [keterangan]`.");
+          await this.sendMessage(chatId, "📢 **Cara Penggunaan Broadcast:**\n\n`/broadcast Pesan yang ingin Anda siarkan.`\n\n💡 *Contoh:* `/broadcast Halo semua! Ini pesan broadcast.`\n\n🖼️ **Untuk mengirim media:** Balas gambar atau video dengan `/broadcast [keterangan]`.", options);
         }
       }
       return new Response("OK", { status: 200 });
@@ -1266,7 +1269,7 @@ ${userListText}`;
     // Handle userlist command
     if (text.startsWith("/userlist")) {
       // Loading message dengan emoji yang lebih menarik
-      const loadingMessage = await this.sendMessage(chatId, "⏳ *Memuat daftar pengguna...*", { parse_mode: "Markdown" });
+      const loadingMessage = await this.sendMessage(chatId, "⏳ *Memuat daftar pengguna...*", { parse_mode: "Markdown", ...options });
       let messageIdToDelete;
       
       if (loadingMessage && loadingMessage.result) {
@@ -1278,7 +1281,7 @@ ${userListText}`;
         const totalUsers = allUsers.length;
         
         if (totalUsers === 0) {
-          await this.sendMessage(chatId, "📭 *Belum ada pengguna yang terdaftar.*\n\n💡 *Pengguna akan otomatis terdaftar ketika berinteraksi dengan bot.*", { parse_mode: "Markdown" });
+          await this.sendMessage(chatId, "📭 *Belum ada pengguna yang terdaftar.*\n\n💡 *Pengguna akan otomatis terdaftar ketika berinteraksi dengan bot.*", { parse_mode: "Markdown", ...options });
           return new Response("OK", { status: 200 });
         }
         
@@ -1344,7 +1347,8 @@ ${userListText}`;
           reply_markup: {
             inline_keyboard: keyboard
           },
-          parse_mode: "Markdown"
+          parse_mode: "Markdown",
+          ...options
         });
         
       } finally {
@@ -1382,7 +1386,8 @@ ${userListText}`;
 Kirim langsung link konfigurasi Anda di chat ini!`,
     { 
       reply_to_message_id: messageId,
-      parse_mode: "Markdown"
+      parse_mode: "Markdown",
+      ...options
     }
   );
   return new Response("OK", { status: 200 });
@@ -1401,7 +1406,8 @@ if (text.includes("://")) {
         "❌ *Tidak ada link valid yang ditemukan!*\n\nSilakan kirim link dengan format:\n• VLESS: \\`vless://...\\`\n• VMess: \\`vmess://...\\`\n• Trojan: \\`trojan://...\\`\n• Shadowsocks: \\`ss://...\\`",
         { 
           reply_to_message_id: messageId,
-          parse_mode: "Markdown"
+          parse_mode: "Markdown",
+          ...options
         }
       );
       return new Response("OK", { status: 200 });
@@ -1413,7 +1419,8 @@ if (text.includes("://")) {
       `🔄 *Memproses ${links.length} link...*\n⏳ Mohon tunggu sebentar...`,
       { 
         reply_to_message_id: messageId,
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
+        ...options
       }
     );
 
@@ -1424,17 +1431,20 @@ if (text.includes("://")) {
     // Kirim file konfigurasi
     await this.sendDocument(chatId, clashConfig, "config_clash.yaml", "text/yaml", { 
       reply_to_message_id: messageId,
-      caption: "⚡ *Konfigurasi Clash*"
+      caption: "⚡ *Konfigurasi Clash*",
+      ...options
     });
     
     await this.sendDocument(chatId, nekoboxConfig, "config_nekobox.json", "application/json", { 
       reply_to_message_id: messageId,
-      caption: "📱 *Konfigurasi Nekobox*"
+      caption: "📱 *Konfigurasi Nekobox*",
+      ...options
     });
     
     await this.sendDocument(chatId, singboxConfig, "config_singbox.json", "application/json", { 
       reply_to_message_id: messageId,
-      caption: "🎯 *Konfigurasi Singbox*"
+      caption: "🎯 *Konfigurasi Singbox*",
+      ...options
     });
 
     // Pesan sukses
@@ -1443,7 +1453,8 @@ if (text.includes("://")) {
       `✅ *Konversi Berhasil!*\n\n📦 **${links.length} link** telah dikonversi ke 3 format berbeda:\n\n• 🎯 Singbox\n• 📱 Nekobox\n• ⚡ Clash\n\n🚀 **Selamat menikmati!**`,
       { 
         reply_to_message_id: messageId,
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
+        ...options
       }
     );
 
@@ -1454,7 +1465,8 @@ if (text.includes("://")) {
       `❌ *Terjadi Kesalahan!*\n\nError: ${error.message}\n\nPastikan link yang dikirim dalam format yang benar dan coba lagi.`,
       { 
         reply_to_message_id: messageId,
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
+        ...options
       }
     );
   }
@@ -1519,17 +1531,23 @@ return new Response("OK", { status: 200 });
     const formData = new FormData();
     const blob = new Blob([content], { type: mimeType });
     formData.append("document", blob, filename);
-    formData.append("chat_id", chatId.toString());
-    if (options.reply_to_message_id) {
-      formData.append("reply_to_message_id", options.reply_to_message_id.toString());
+    formData.append("chat_id", String(chatId));
+    if (options.message_thread_id) {
+      formData.append("message_thread_id", String(options.message_thread_id));
     }
-    const response = await fetch(
-      `${this.apiUrl}/bot${this.token}/sendDocument`,
-      {
-        method: "POST",
-        body: formData
-      }
-    );
+    if (options.caption) {
+      formData.append("caption", options.caption);
+    }
+    if (options.parse_mode) {
+      formData.append("parse_mode", options.parse_mode);
+    }
+    if (options.reply_to_message_id) {
+      formData.append("reply_to_message_id", String(options.reply_to_message_id));
+    }
+    const response = await fetch(`${this.apiUrl}/bot${this.token}/sendDocument`, {
+      method: "POST",
+      body: formData
+    });
     return response.json();
   }
   async sendPhoto(chatId, photo, options = {}) {
@@ -1556,7 +1574,7 @@ return new Response("OK", { status: 200 });
     });
     return response.json();
   }
-  async sendBroadcastMessage(message) {
+  async sendBroadcastMessage(message, options) {
     const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
     let successCount = 0;
     let failCount = 0;
@@ -1584,7 +1602,7 @@ return new Response("OK", { status: 200 });
 Total user terdaftar: *${totalUsers}*
 Berhasil dikirim: *${successCount}*
 Gagal dikirim: *${failCount}*`;
-    await this.sendMessage(this.ownerId, broadcastReport);
+    await this.sendMessage(this.ownerId, broadcastReport, options);
   }
 
   async sendBroadcastVideo(videoId, caption) {
@@ -1663,7 +1681,7 @@ function generateUUID() {
 __name(generateUUID, "generateUUID");
 async function randomconfig() {
   try {
-    const HOSTKU2 = "joss.krikkrik.web.id";
+    const HOSTKU2 = "joss.krekkrek.web.id";
     const GITHUB_BASE_URL = "https://raw.githubusercontent.com/jaka2m/botak/main/cek/";
     const proxyResponse = await fetch(`${GITHUB_BASE_URL}proxyList.txt`);
     if (!proxyResponse.ok) {
@@ -1754,13 +1772,14 @@ ${ssTLSLink2}
 __name(randomconfig, "randomconfig");
 
 // src/config.js
-async function rotateconfig(chatId, text) {
+async function rotateconfig(chatId, text, options) {
   const command = text.trim();
   const args = command.split(" ");
   if (args.length !== 2) {
     await this.sendMessage(chatId, ` *Format salah! Gunakan contoh berikut:*
 \`/rotate id\``, {
-      parse_mode: "Markdown"
+      parse_mode: "Markdown",
+      ...options
     });
     return;
   }
@@ -1805,26 +1824,35 @@ async function rotateconfig(chatId, text) {
   ];
   if (!validCountries.includes(countryCode)) {
     await this.sendMessage(chatId, ` *Kode negara tidak valid! Gunakan kode yang tersedia.*`, {
-      parse_mode: "Markdown"
+      parse_mode: "Markdown",
+      ...options
     });
     return;
   }
-  const loadingMessage = await this.sendMessage(chatId, " Sedang memproses config...");
+  const loadingMessage = await this.sendMessage(chatId, "  Sedang memproses config...", options);
   try {
     const response = await fetch("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
     const ipText = await response.text();
     const ipList = ipText.split("\n").map((line) => line.trim()).filter((line) => line !== "");
-    if (ipList.length === 0) {
+
+    const filteredList = ipList.filter(line => {
+        const parts = line.split(',');
+        return parts.length > 2 && parts[2].toLowerCase() === countryCode;
+    });
+
+    if (filteredList.length === 0) {
       await this.sendMessage(chatId, ` *Tidak ada IP untuk negara ${countryCode.toUpperCase()}*`, {
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
+        ...options
       });
       await this.deleteMessage(chatId, loadingMessage.result.message_id);
       return;
     }
-    const [ip, port, country, provider] = ipList[Math.floor(Math.random() * ipList.length)].split(",");
+    const [ip, port, country, provider] = filteredList[Math.floor(Math.random() * filteredList.length)].split(",");
     if (!ip || !port) {
       await this.sendMessage(chatId, ` Data IP atau Port tidak lengkap dari daftar proxy.`, {
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
+        ...options
       });
       await this.deleteMessage(chatId, loadingMessage.result.message_id);
       return;
@@ -1833,7 +1861,8 @@ async function rotateconfig(chatId, text) {
     const ipData = await statusResponse.json();
     if (ipData.status !== "ACTIVE") {
       await this.sendMessage(chatId, ` *IP ${ip}:${port} tidak aktif.*`, {
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
+        ...options
       });
       await this.deleteMessage(chatId, loadingMessage.result.message_id);
       return;
@@ -1845,7 +1874,7 @@ async function rotateconfig(chatId, text) {
       return v.toString(16);
     }), "generateUUID");
     const toBase642 = /* @__PURE__ */ __name((str) => typeof btoa === "function" ? btoa(unescape(encodeURIComponent(str))) : Buffer.from(str, "utf-8").toString("base64"), "toBase64");
-    const HOSTKU2 = "joss.krikkrik.web.id";
+    const HOSTKU2 = "joss.krekkrek.web.id";
     const path = `/Free-VPN-CF-Geo-Project/${ip}=${port}`;
     const encodedVlessLabelTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} TLS`);
     const encodedVlessLabelNTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} NTLS`);
@@ -1883,11 +1912,11 @@ ss://${toBase642(`none:${generateUUID4()}`)}@${HOSTKU2}:80?encryption=none&type=
 
  Modded By : [GEO PROJECT](https://t.me/sampiiiiu)
 `;
-    await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
+    await this.sendMessage(chatId, configText, { parse_mode: "Markdown", ...options });
     await this.deleteMessage(chatId, loadingMessage.result.message_id);
   } catch (error) {
     console.error(error);
-    await this.sendMessage(chatId, ` Terjadi kesalahan: ${error.message}`);
+    await this.sendMessage(chatId, `   Terjadi kesalahan: ${error.message}`, options);
     await this.deleteMessage(chatId, loadingMessage.result.message_id);
   }
 }
@@ -1971,8 +2000,8 @@ function generateCountryIPsMessage(ipList, countryCode) {
 }
 __name(generateCountryIPsMessage, "generateCountryIPsMessage");
 
-async function handleRandomIpCommand(bot, chatId) {
-    const loadingMessage = await bot.sendMessage(chatId, "Sedang memproses...");
+async function handleRandomIpCommand(bot, chatId, options) {
+    const loadingMessage = await bot.sendMessage(chatId, "Sedang memproses...", options);
     const messageIdToDelete = loadingMessage && loadingMessage.result ? loadingMessage.result.message_id : null;
     try {
         globalIpList = await fetchProxyList("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
@@ -1980,7 +2009,7 @@ async function handleRandomIpCommand(bot, chatId) {
         if (globalIpList.length === 0) {
             await bot.sendMessage(chatId, 
                 "❌ *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*", 
-                { parse_mode: "Markdown" }
+                { parse_mode: "Markdown", ...options }
             );
             return;
         }
@@ -1996,7 +2025,8 @@ async function handleRandomIpCommand(bot, chatId) {
 
         await bot.sendMessage(chatId, text, {
             parse_mode: "Markdown",
-            reply_markup
+            reply_markup,
+            ...options
         });
         
     } catch (error) {
@@ -2004,13 +2034,14 @@ async function handleRandomIpCommand(bot, chatId) {
             await bot.deleteMessage(chatId, messageIdToDelete);
         }
         await bot.sendMessage(chatId, 
-            `⚠️ Gagal mengambil data IP: ${error.message}`
+            `⚠️ Gagal mengambil data IP: ${error.message}`,
+            options
         );
     }
 }
 __name(handleRandomIpCommand, "handleRandomIpCommand");
 
-async function handleCallbackQuery(bot, callbackQuery) {
+async function handleCallbackQuery(bot, callbackQuery, options) {
     const chatId = callbackQuery.message.chat.id;
     const messageId = callbackQuery.message.message_id;
     const data = callbackQuery.data;
@@ -2023,7 +2054,7 @@ async function handleCallbackQuery(bot, callbackQuery) {
             chat_id: chatId,
             message_id: messageId,
             reply_markup: keyboard
-        });
+        }, options);
         
         await bot.answerCallbackQuery(callbackQuery.id);
         return;
@@ -2036,10 +2067,10 @@ async function handleCallbackQuery(bot, callbackQuery) {
         if (!msg) {
             await bot.sendMessage(chatId,
                 `❌ Tidak ditemukan IP untuk negara: ${code}`,
-                { parse_mode: "Markdown" }
+                { parse_mode: "Markdown", ...options }
             );
         } else {
-            await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+            await bot.sendMessage(chatId, msg, { parse_mode: "Markdown", ...options });
         }
 
         await bot.answerCallbackQuery(callbackQuery.id);
@@ -2053,10 +2084,10 @@ async function handleCallbackQuery(bot, callbackQuery) {
         if (!msg) {
             await bot.sendMessage(chatId,
                 `❌ Tidak ditemukan IP untuk negara: ${code}`,
-                { parse_mode: "Markdown" }
+                { parse_mode: "Markdown", ...options }
             );
         } else {
-            await bot.sendDocument(chatId, msg, `proxy_ips_${code}.txt`, "text/plain");
+            await bot.sendDocument(chatId, msg, `proxy_ips_${code}.txt`, "text/plain", options);
         }
 
         await bot.answerCallbackQuery(callbackQuery.id);
@@ -2080,7 +2111,8 @@ async function handleCallbackQuery(bot, callbackQuery) {
             `Anda memilih negara ${getFlagEmoji(code)} ${code}. Silakan pilih format output:`, 
             {
                 parse_mode: 'Markdown',
-                reply_markup: keyboard
+                reply_markup: keyboard,
+                ...options
             }
         );
 
@@ -2112,6 +2144,9 @@ const TelegramBotku = class {
         if (options.reply_to_message_id) {
             formData.append("reply_to_message_id", options.reply_to_message_id.toString());
         }
+        if (options.message_thread_id) {
+            formData.append("message_thread_id", options.message_thread_id.toString());
+        }
         const response = await fetch(
             `${this.apiUrl}/bot${this.token}/sendDocument`,
             {
@@ -2122,11 +2157,28 @@ const TelegramBotku = class {
         return response.json();
     }
 
+    async sendPhoto(chatId, photo, options = {}) {
+        const url = `${this.apiUrl}/bot${this.token}/sendPhoto`;
+        const body = {
+            chat_id: chatId,
+            photo,
+            ...options
+        };
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        return response.json();
+    }
+
     async handleUpdate(update) {
         if (update.callback_query) {
             const data = update.callback_query.data;
+            const message_thread_id = update.callback_query.message.message_thread_id;
+            const options = message_thread_id ? { message_thread_id } : {};
             
-            await handleCallbackQuery(this, update.callback_query);
+            await handleCallbackQuery(this, update.callback_query, options);
             return new Response("OK", { status: 200 });
         }
         
@@ -2135,9 +2187,12 @@ const TelegramBotku = class {
         const chatId = update.message.chat.id;
         const text = update.message.text || "";
         const messageId = update.message.message_id;
+        const message_thread_id = update.message.message_thread_id;
+        
+        const options = message_thread_id ? { message_thread_id } : {};
 
         if (text === "/proxy") {
-            await handleRandomIpCommand(this, chatId);
+            await handleRandomIpCommand(this, chatId, options);
             return new Response("OK", { status: 200 });
         }
 
@@ -2149,7 +2204,7 @@ const TelegramBotku = class {
                     [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
                 ]
             };
-            await this.sendMessage(chatId, messageText, { parse_mode: "Markdown", reply_markup: replyMarkup });
+            await this.sendMessage(chatId, messageText, { parse_mode: "Markdown", reply_markup: replyMarkup, ...options });
             return new Response("OK", { status: 200 });
         }
 
@@ -2186,12 +2241,12 @@ const TelegramBotku = class {
 ╰─── •「 @sampiiiiu 」• ───╯
 
 `;
-  await this.sendMessage(chatId, menuText, { parse_mode: "Markdown" });
+  await this.sendMessage(chatId, menuText, { parse_mode: "Markdown", ...options });
   return new Response("OK", { status: 200 });
 }
 
     if (text === "/proxyip") {
-      await this.handleProxyipCommand(chatId);
+      await this.handleProxyipCommand(chatId, options);
       return new Response("OK", { status: 200 });
     }
 
@@ -2274,7 +2329,7 @@ not autonomous_system.name: "CLOUDFLARE*" and services: (software.product: "Clou
 
  *Modded By:* [Geo Project](https://t.me/sampiiiiu)
 `;
-  await this.sendMessage(chatId, menuText, { parse_mode: "Markdown" });
+  await this.sendMessage(chatId, menuText, { parse_mode: "Markdown", ...options });
   return new Response("OK", { status: 200 });
 }
 
@@ -2282,15 +2337,8 @@ if (text === "/donate") {
     const imageUrl = "https://github.com/jaka1m/project/raw/main/BAYAR.jpg";
     
     try {
-        await fetch(`${this.apiUrl}/bot${this.token}/sendPhoto`, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json" 
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                photo: imageUrl,
-                caption: `
+        await this.sendPhoto(chatId, imageUrl, {
+            caption: `
 💝 *Dukung Pengembangan Bot!* 💝
 
 Bantu kami terus berkembang dengan scan QRIS di atas!
@@ -2305,28 +2353,28 @@ Terima kasih atas dukungannya! 🙏
 
 _— Tim GEO BOT SERVER_
 `.trim(),
-                parse_mode: "Markdown",
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { 
-                                text: "🌐 GEO PROJECT", 
-                                url: "https://t.me/sampiiiiu" 
-                            },
-                            { 
-                                text: "⭐ Beri Rating", 
-                                url: "https://t.me/sampiiiiu" 
-                            }
-                        ],
-                        [
-                            { 
-                                text: "💬 Channel Update", 
-                                url: "https://t.me/sampiiiiu" 
-                            }
-                        ]
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { 
+                            text: "🌐 GEO PROJECT", 
+                            url: "https://t.me/sampiiiiu" 
+                        },
+                        { 
+                            text: "⭐ Beri Rating", 
+                            url: "https://t.me/sampiiiiu" 
+                        }
+                    ],
+                    [
+                        { 
+                            text: "💬 Channel Update", 
+                            url: "https://t.me/sampiiiiu" 
+                        }
                     ]
-                }
-            })
+                ]
+            },
+            ...options
         });
         
     } catch (error) {
@@ -2337,7 +2385,7 @@ _— Tim GEO BOT SERVER_
             `Bantu kami terus berkembang dengan donasi melalui QRIS.\n\n` +
             `Terima kasih atas dukungannya! 🙏\n\n` +
             `🌐 [GEO PROJECT](https://t.me/sampiiiiu)`,
-            { parse_mode: "Markdown" }
+            { parse_mode: "Markdown", ...options }
         );
     }
     
@@ -2346,7 +2394,7 @@ _— Tim GEO BOT SERVER_
 
     if (text === "/stats") {
     const CLOUDFLARE_API_TOKEN = "Wdkss4h77Dp7gpz1GUNd49dUSVCocVE0wkUgQq4l";
-    const CLOUDFLARE_ZONE_ID = "340498f7e72be9e4dcd0cf2f0bcb972c";
+    const CLOUDFLARE_ZONE_ID = "fe34f9ac955252fedff0a3907333b456";
     
     const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
         const d = /* @__PURE__ */ new Date();
@@ -2357,7 +2405,7 @@ _— Tim GEO BOT SERVER_
     const tenDaysAgo = getTenDaysAgoDate();
     const loadingMsg = await this.sendMessage(chatId, 
         "📊 *Mengambil data statistik...*", 
-        { parse_mode: "Markdown" }
+        { parse_mode: "Markdown", ...options }
     );
     const messageIdToDelete = loadingMsg && loadingMsg.result ? loadingMsg.result.message_id : null;
     try {
@@ -2453,7 +2501,7 @@ _— Tim GEO BOT SERVER_
         // Delete loading message and send final stats
         await this.deleteMessage(chatId, loadingMsg.message_id);
         await this.sendMessage(chatId, usageText, { 
-            parse_mode: "Markdown"
+            parse_mode: "Markdown", ...options
         });
 
     } catch (error) {
@@ -2463,7 +2511,7 @@ _— Tim GEO BOT SERVER_
             `❌ *Gagal mengambil data statistik*\n\n` +
             `_Error:_ \`${error.message}\`\n\n` +
             `Pastikan API token dan Zone ID masih valid.`,
-            { parse_mode: "Markdown" }
+            { parse_mode: "Markdown", ...options }
         );
     } finally {
         if (messageIdToDelete) {
@@ -2475,15 +2523,8 @@ _— Tim GEO BOT SERVER_
 }
     
     if (text === "/start") {
-  const imageUrl = "https://github.com/jaka8m/BOT-CONVERTER/raw/main/start.png";
-  try {
-    await fetch(`${this.apiUrl}/bot${this.token}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: imageUrl,
-        caption: `
+        await this.sendPhoto(chatId, "https://github.com/jaka8m/BOT-CONVERTER/raw/main/start.png", {
+            caption: `
 ✨━━━━━━━━━━━━━━━━━✨
 🌟 **Welcome to Geo Bot Server!** 🌟
 ✨━━━━━━━━━━━━━━━━━✨
@@ -2508,31 +2549,33 @@ Ketik \`/menu\` untuk melihat semua perintah yang tersedia.
 - Pastikan format input sesuai untuk hasil terbaik
 
 🔗 *Tautan Terkait:*
-🌐 [WEB VPN TUNNEL](https://joss.krikkrik.web.id)
+🌐 [WEB VPN TUNNEL](https://joss.krekkrek.web.id)
 📺 [CHANNEL VPS & Script](https://t.me/testikuy_mang)
 👥 [GRUP PHREAKER](https://t.me/+Q1ARd8ZsAuM2xB6-)
 ✨━━━━━━━━━━━━━━━━━✨
 
 *Terima kasih telah menggunakan layanan kami!* 🚀
 `.trim(),
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
-          ]
-        }
-      })
-    });
-  } catch (error) {
-    console.error(error);
-  }
-  return new Response("OK", { status: 200 });
-}
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
+                ]
+            },
+            ...options
+        });
+        return new Response("OK", { status: 200 });
+    }
 return new Response("OK", { status: 200 });
 }
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
-    const body = { chat_id: chatId, text, ...options };
+    const body = {
+      chat_id: chatId,
+      text,
+      parse_mode: "Markdown",
+      ...options
+    };
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2584,30 +2627,40 @@ return new Response("OK", { status: 200 });
       body: JSON.stringify(body)
     });
   }
-  async handleProxyipCommand(chatId) {
-    const loadingMessage = await this.sendMessage(chatId, " *Sedang memproses, harap tunggu...*", { parse_mode: "Markdown" });
-    try {
-      const response = await fetch("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
-      const ipText = await response.text();
-      const ipList = ipText.split("\n").filter((line) => line.trim() !== "");
-      if (ipList.length === 0) {
-        await this.editMessageText(chatId, loadingMessage.result.message_id, `   *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*`);
-        return;
-      }
-      const countryCodes = [...new Set(ipList.map((line) => line.split(",")[2]))].sort();
-      paginationState.set(chatId, { countryCodes, page: 0 });
-      const buttons = generateCountryButtons(countryCodes, 0);
-      await this.deleteMessage(chatId, loadingMessage.result.message_id);
-      await this.sendMessage(chatId, " *Pilih negara:*", {
-        parse_mode: "Markdown",
-        reply_markup: { inline_keyboard: buttons }
-      });
-    } catch (error) {
-      console.error("Error fetching IP list:", error);
-      await this.editMessageText(chatId, loadingMessage.result.message_id, `   *Terjadi kesalahan saat mengambil daftar IP: ${error.message}*`);
-    }
-  }
 };
+async function handleProxyipCommand(bot, chatId, options) {
+  const loadingMessage = await bot.sendMessage(chatId, "  *Sedang memproses, harap tunggu...*", { parse_mode: "Markdown", ...options });
+  try {
+    const response = await fetch("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
+    const ipText = await response.text();
+    const ipList = ipText.split("\n").filter((line) => line.trim() !== "");
+    if (ipList.length === 0) {
+      await bot.editMessageText("   *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*", {
+        chat_id: chatId,
+        message_id: loadingMessage.result.message_id,
+        ...options
+      });
+      return;
+    }
+    const countryCodes = [...new Set(ipList.map((line) => line.split(",")[2]))].sort();
+    paginationState.set(chatId, { countryCodes, page: 0 });
+    const buttons = generateCountryButtons(countryCodes, 0);
+    await bot.deleteMessage(chatId, loadingMessage.result.message_id);
+    await bot.sendMessage(chatId, "  *Pilih negara:*", {
+      parse_mode: "Markdown",
+      reply_markup: { inline_keyboard: buttons },
+      ...options
+    });
+  } catch (error) {
+    console.error("Error fetching IP list:", error);
+    await bot.editMessageText(`   *Terjadi kesalahan saat mengambil daftar IP: ${error.message}*`, {
+      chat_id: chatId,
+      message_id: loadingMessage.result.message_id,
+      ...options
+    });
+  }
+}
+__name(handleProxyipCommand, "handleProxyipCommand");
 
 // src/checkip/cek.js
 const WILDCARD_MAP = {
@@ -2629,7 +2682,7 @@ const WILDCARD_MAP = {
 const WILDCARD_OPTIONS = Object.entries(WILDCARD_MAP).map(
   ([value, text]) => ({ text, value })
 );
-const DEFAULT_HOST = "joss.krikkrik.web.id";
+const DEFAULT_HOST = "joss.krekkrek.web.id";
 const API_URL = "https://geovpn.vercel.app/check?ip=";
 async function fetchIPData(ip, port) {
   try {
@@ -2793,6 +2846,8 @@ const TelegramProxyCekBot = class {
       const chatId = update.message.chat.id;
       const messageId = update.message.message_id;
       const text = update.message.text.trim();
+      const message_thread_id = update.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
       const ipOnlyMatch = text.match(/^(\d{1,3}(?:\.\d{1,3}){3})$/);
       const ipPortMatch = text.match(/^(\d{1,3}(?:\.\d{1,3}){3}):(\d{1,5})$/);
       if (!ipOnlyMatch && !ipPortMatch) {
@@ -2806,10 +2861,10 @@ const TelegramProxyCekBot = class {
 \`\`\`Running
 Please wait while it is being processed...
 \`\`\`
-`);
+`, options);
       const data = await fetchIPData(ip, port);
       if (!data) {
-        await this.editMessage(chatId, loadingMsg.result.message_id, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
+        await this.editMessage(chatId, loadingMsg.result.message_id, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
         return new Response("OK", { status: 200 });
       }
       const { isp, country, delay, status } = data;
@@ -2823,7 +2878,7 @@ Status : ${status || "-"}
 \`\`\`
 Pilih protokol:`;
       await this.editMessage(chatId, loadingMsg.result.message_id, infoText, {
-        reply_markup: createProtocolInlineKeyboard(ip, port)
+        reply_markup: createProtocolInlineKeyboard(ip, port), ...options
       });
       return new Response("OK", { status: 200 });
     }
@@ -2832,18 +2887,20 @@ Pilih protokol:`;
       const chatId = callback.message.chat.id;
       const messageId = callback.message.message_id;
       const data = callback.data;
+      const message_thread_id = callback.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
       const parts = data.split("|");
       if (parts[0] === "PROTOCOL") {
         const [_, protocol, ip, port] = parts;
         await this.editMessage(chatId, messageId, ` ⚙️Opsi wildcard untuk ${protocol}`, {
-          reply_markup: createInitialWildcardInlineKeyboard(ip, port, protocol)
+          reply_markup: createInitialWildcardInlineKeyboard(ip, port, protocol), ...options
         });
         return new Response("OK", { status: 200 });
       }
       if (parts[0] === "SHOW_WILDCARD") {
         const [_, protocol, ip, port] = parts;
         await this.editMessage(chatId, messageId, ` Opsi wildcard untuk ${protocol}`, {
-          reply_markup: createWildcardOptionsInlineKeyboard(ip, port, protocol)
+          reply_markup: createWildcardOptionsInlineKeyboard(ip, port, protocol), ...options
         });
         return new Response("OK", { status: 200 });
       }
@@ -2854,10 +2911,10 @@ Pilih protokol:`;
 \`\`\`Running
 Please wait while it is being processed...
 \`\`\`
-`);
+`, options);
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
+          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
@@ -2871,7 +2928,7 @@ ${configText}
               text: " Back",
               callback_data: `BACK_WILDCARD|${protocol}|${ip}|${port}`
             }]]
-          }
+          }, ...options
         });
         await this.deleteMessage(chatId, loadingMsg.result.message_id);
         return new Response("OK", { status: 200 });
@@ -2883,10 +2940,10 @@ ${configText}
 \`\`\`Running
 Please wait while it is being processed...
 \`\`\`
-`);
+`, options);
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
+          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
@@ -2900,7 +2957,7 @@ ${configText}
               text: " Back",
               callback_data: `BACK_WILDCARD|${protocol}|${ip}|${port}`
             }]]
-          }
+          }, ...options
         });
         await this.deleteMessage(chatId, loadingMsg.result.message_id);
         return new Response("OK", { status: 200 });
@@ -2909,7 +2966,7 @@ ${configText}
         const [_, ip, port] = parts;
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`);
+          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
           return new Response("OK", { status: 200 });
         }
         const infoText = `\`\`\`INFORMATION
@@ -2922,14 +2979,14 @@ Status : ${dataInfo.status}
 \`\`\`
 Pilih protokol:`;
         await this.editMessage(chatId, messageId, infoText, {
-          reply_markup: createProtocolInlineKeyboard(ip, port)
+          reply_markup: createProtocolInlineKeyboard(ip, port), ...options
         });
         return new Response("OK", { status: 200 });
       }
       if (parts[0] === "BACK_WILDCARD") {
         const [_, protocol, ip, port] = parts;
         await this.editMessage(chatId, messageId, ` Opsi wildcard untuk ${protocol}`, {
-          reply_markup: createInitialWildcardInlineKeyboard(ip, port, protocol)
+          reply_markup: createInitialWildcardInlineKeyboard(ip, port, protocol), ...options
         });
         return new Response("OK", { status: 200 });
       }
@@ -2940,7 +2997,7 @@ Pilih protokol:`;
 
 // src/proxyip/proxyip.js
 const APIKU = "https://geovpn.vercel.app/check?ip=";
-const DEFAULT_HOST2 = "joss.krikkrik.web.id";
+const DEFAULT_HOST2 = "joss.krekkrek.web.id";
 const sentMessages = /* @__PURE__ */ new Map();
 const paginationState = /* @__PURE__ */ new Map();
 function generateUUID3() {
@@ -3001,6 +3058,9 @@ __name(generateCountryButtons, "generateCountryButtons");
 async function handleCallbackQuery2(bot, callbackQuery) {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
+  const message_thread_id = callbackQuery.message.message_thread_id;
+  const options = message_thread_id ? { message_thread_id } : {};
+
   if (data.startsWith("page_")) {
     if (!paginationState.has(chatId)) {
       await bot.answerCallbackQuery(callbackQuery.id, { text: "Session expired, silakan ulangi perintah." });
@@ -3014,7 +3074,8 @@ async function handleCallbackQuery2(bot, callbackQuery) {
         chat_id: chatId,
         message_id: callbackQuery.message.message_id,
         parse_mode: "Markdown",
-        reply_markup: { inline_keyboard: generateCountryButtons(countryCodes, 0) }
+        reply_markup: { inline_keyboard: generateCountryButtons(countryCodes, 0) },
+        ...options
       });
       paginationState.set(chatId, { countryCodes, page: 0 });
       await bot.answerCallbackQuery(callbackQuery.id);
@@ -3028,7 +3089,8 @@ async function handleCallbackQuery2(bot, callbackQuery) {
         const buttons = generateCountryButtons(countryCodes, page);
         await bot.editMessageReplyMarkup({ inline_keyboard: buttons }, {
           chat_id: chatId,
-          message_id: callbackQuery.message.message_id
+          message_id: callbackQuery.message.message_id,
+          ...options
         });
       }
       await bot.answerCallbackQuery(callbackQuery.id);
@@ -3043,7 +3105,8 @@ async function handleCallbackQuery2(bot, callbackQuery) {
         const buttons = generateCountryButtons(countryCodes, page);
         await bot.editMessageReplyMarkup({ inline_keyboard: buttons }, {
           chat_id: chatId,
-          message_id: callbackQuery.message.message_id
+          message_id: callbackQuery.message.message_id,
+          ...options
         });
       }
       await bot.answerCallbackQuery(callbackQuery.id);
@@ -3062,7 +3125,7 @@ async function handleCallbackQuery2(bot, callbackQuery) {
       const ipList = ipText.split("\n").filter((line) => line.trim() !== "");
       const filteredIPs = ipList.filter((line) => line.split(",")[2] === countryCode);
       if (filteredIPs.length === 0) {
-        await bot.sendMessage(chatId, ` *Tidak ada IP tersedia untuk negara ${countryCode}.*`, { parse_mode: "Markdown" });
+        await bot.sendMessage(chatId, `   *Tidak ada IP tersedia untuk negara ${countryCode}.*`, { parse_mode: "Markdown", ...options });
         await bot.answerCallbackQuery(callbackQuery.id);
         return;
       }
@@ -3096,12 +3159,13 @@ STATUS  : ${status}
       }
       await bot.sendMessage(chatId, messageText, {
         parse_mode: "Markdown",
-        reply_markup: { inline_keyboard: buttons }
+        reply_markup: { inline_keyboard: buttons },
+        ...options
       });
     } catch (error) {
-  console.error(" Error fetching IP status:", error);
-  await bot.sendMessage(chatId, ` *Terjadi kesalahan saat memverifikasi IP.*`, { parse_mode: "Markdown" });
-}
+      console.error("  Error fetching IP status:", error);
+      await bot.sendMessage(chatId, "   *Terjadi kesalahan saat memverifikasi IP.*", { parse_mode: "Markdown", ...options });
+    }
     await bot.answerCallbackQuery(callbackQuery.id);
     return;
   }
@@ -3136,10 +3200,10 @@ ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:443?encryption=none&type=ws&h
 ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:80?encryption=none&type=ws&host=${DEFAULT_HOST2}&path=${path}&security=none&sni=${DEFAULT_HOST2}#${prov}
 \`\`\``;
       }
-      await bot.sendMessage(chatId, configText, { parse_mode: "Markdown" });
+      await bot.sendMessage(chatId, configText, { parse_mode: "Markdown", ...options });
     } catch (err) {
       console.error(" Error generating config:", err);
-      await bot.sendMessage(chatId, ` *Gagal membuat konfigurasi.*`, { parse_mode: "Markdown" });
+      await bot.sendMessage(chatId, "   *Gagal membuat konfigurasi.*", { parse_mode: "Markdown", ...options });
     }
     await bot.answerCallbackQuery(callbackQuery.id);
     return;
@@ -3149,67 +3213,102 @@ ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:80?encryption=none&type=ws&ho
 __name(handleCallbackQuery2, "handleCallbackQuery");
 
 // src/proxyip/bot3.js
-const TelegramProxyBot = class {
+class TelegramProxyBot {
   static {
     __name(this, "TelegramProxyBot");
   }
+
   constructor(token, apiUrl = "https://api.telegram.org") {
     this.token = token;
     this.apiUrl = apiUrl;
   }
+
   async handleUpdate(update) {
     if (update.message) {
       const msg = update.message;
       if (msg.text && msg.text.startsWith("/proxyip")) {
-        await handleProxyipCommand(this, msg);
+        const options = msg.message_thread_id ? { message_thread_id: msg.message_thread_id } : {};
+        await handleProxyipCommand(this, msg.chat.id, options);
       }
     }
+
     if (update.callback_query) {
       await handleCallbackQuery2(this, update.callback_query);
     }
+
     return new Response("OK", { status: 200 });
   }
+
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
     const body = { chat_id: chatId, text, ...options };
+    
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
+    
     return res.json();
   }
+
+  async editMessageText(text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = { text, ...options };
+    
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    
+    return res.json();
+  }
+  
   async answerCallbackQuery(callbackQueryId, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/answerCallbackQuery`;
     const body = { callback_query_id: callbackQueryId, ...options };
+    
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
+    
     return res.json();
   }
-  async editMessageReplyMarkup(replyMarkup, { chat_id, message_id }) {
+
+  async editMessageReplyMarkup(replyMarkup, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/editMessageReplyMarkup`;
-    const body = {
-      chat_id,
-      message_id,
-      reply_markup: replyMarkup
-    };
+    const body = { ...options, reply_markup: replyMarkup };
+    
     const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    
+    return res.json();
+  }
+
+  async deleteMessage(chatId, messageId) {
+    const url = `${this.apiUrl}/bot${this.token}/deleteMessage`;
+    const body = { chat_id: chatId, message_id: messageId };
+    
+    await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
-    return res.json();
   }
-};
+}
 
 // src/wildcard/botwild.js
-const KonstantaGlobalbot = class {
+class KonstantaGlobalbot {
   static {
     __name(this, "KonstantaGlobalbot");
   }
+
   constructor({ apiKey, rootDomain, accountID, zoneID, apiEmail, serviceName }) {
     this.apiKey = apiKey;
     this.rootDomain = rootDomain;
@@ -3217,6 +3316,7 @@ const KonstantaGlobalbot = class {
     this.zoneID = zoneID;
     this.apiEmail = apiEmail;
     this.serviceName = serviceName;
+    
     this.headers = {
       "Authorization": `Bearer ${this.apiKey}`,
       "X-Auth-Email": this.apiEmail,
@@ -3224,29 +3324,37 @@ const KonstantaGlobalbot = class {
       "Content-Type": "application/json"
     };
   }
-  escapeMarkdownV2(text) {
-    return text.replace(/([_*\[\]()~`>#+=|{}.!\\-])/g, "\\$1");
-  }
-  // Cloudflare API: ambil daftar domain Workers
-  async getDomainList() {
+
+  async getDomainObjects() {
     const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountID}/workers/domains`;
     const res = await fetch(url, { headers: this.headers });
+    
     if (!res.ok) return [];
+    
     const json = await res.json();
-    return json.result.filter((d) => d.service === this.serviceName).map((d) => d.hostname);
+    return json.result.filter((d) => d.service === this.serviceName);
   }
-  // Cloudflare API: tambahkan subdomain
+
+  async getDomainList() {
+    const domains = await this.getDomainObjects();
+    return domains.map((d) => d.hostname);
+  }
+
   async addSubdomain(subdomain) {
     const domain = `${subdomain}.${this.rootDomain}`.toLowerCase();
+    
     if (!domain.endsWith(this.rootDomain)) return 400;
+    
     const registered = await this.getDomainList();
     if (registered.includes(domain)) return 409;
+    
     try {
       const testRes = await fetch(`https://${subdomain}`);
       if (testRes.status === 530) return 530;
     } catch {
       return 400;
     }
+    
     const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountID}/workers/domains`;
     const body = {
       environment: "production",
@@ -3254,50 +3362,65 @@ const KonstantaGlobalbot = class {
       service: this.serviceName,
       zone_id: this.zoneID
     };
+    
     const res = await fetch(url, {
       method: "PUT",
       headers: this.headers,
       body: JSON.stringify(body)
     });
+    
     return res.status;
   }
-  // Cloudflare API: hapus subdomain
+
   async deleteSubdomain(subdomain) {
     const domain = `${subdomain}.${this.rootDomain}`.toLowerCase();
     const listUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountID}/workers/domains`;
+    
     const listRes = await fetch(listUrl, { headers: this.headers });
     if (!listRes.ok) return listRes.status;
+    
     const json = await listRes.json();
     const obj = json.result.find((d) => d.hostname === domain);
+    
     if (!obj) return 404;
+    
     const res = await fetch(`${listUrl}/${obj.id}`, {
       method: "DELETE",
       headers: this.headers
     });
+    
     return res.status;
   }
+
   saveDomainRequest(request) {
     globalThis.subdomainRequests.push(request);
   }
+
   findPendingRequest(subdomain, requesterId = null) {
     return globalThis.subdomainRequests.find(
-      (r) => r.subdomain === subdomain && r.status === "pending" && (requesterId === null || r.requesterId === requesterId)
+      (r) => r.subdomain === subdomain && 
+             r.status === "pending" && 
+             (requesterId === null || r.requesterId === requesterId)
     );
   }
+
   updateRequestStatus(subdomain, status) {
     const r = globalThis.subdomainRequests.find(
       (r2) => r2.subdomain === subdomain && r2.status === "pending"
     );
     if (r) r.status = status;
   }
+
   getAllRequests() {
     return globalThis.subdomainRequests.slice();
   }
-};
-const TelegramWildcardBot = class {
+}
+
+class TelegramWildcardBot {
   static {
     __name(this, "TelegramWildcardBot");
   }
+
   constructor(token, apiUrl, ownerId, globalBot) {
     this.token = token;
     this.apiUrl = apiUrl || "https://api.telegram.org";
@@ -3305,276 +3428,320 @@ const TelegramWildcardBot = class {
     this.globalBot = globalBot;
     this.awaitingAddList = {};
     this.awaitingDeleteList = {};
+    
     this.handleUpdate = this.handleUpdate.bind(this);
   }
-  escapeMarkdownV2(text) {
-    return this.globalBot.escapeMarkdownV2(text);
-  }
+
   async handleUpdate(update) {
     if (!update.message) return new Response("OK", { status: 200 });
+    
     const chatId = update.message.chat.id;
     const from = update.message.from;
     const username = from.username || from.first_name || "Unknown";
     const text = update.message.text || "";
+    const message_thread_id = update.message.message_thread_id;
+    const options = message_thread_id ? { message_thread_id } : {};
     const isOwner = chatId === this.ownerId;
-    const now = (/* @__PURE__ */ new Date()).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
-    if (text.startsWith("/add")) {
-        const loadingMessage = await this.sendMessage(chatId, "Sedang memproses...");
-        const messageIdToDelete = loadingMessage && loadingMessage.result ? loadingMessage.result.message_id : null;
-        try {
-            const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-            const firstLine = lines[0];
-            const restLines = lines.slice(1);
-            let subdomains = [];
-            if (firstLine.includes(" ") && restLines.length === 0) {
-                subdomains = firstLine.split(" ").slice(1).map((s) => s.trim()).filter(Boolean);
-            } else if (restLines.length > 0) {
-                subdomains = restLines;
-            }
-            if (subdomains.length === 0) {
-                await this.sendMessage(
-                    chatId,
-                    "```   \nMohon sertakan satu atau lebih subdomain setelah /add.\n```",
-                    { parse_mode: "Markdown" }
-                );
-                return new Response("OK", { status: 200 });
-            }
-            const results = [];
-            for (const sd of subdomains) {
-                const cleanSd = sd.trim();
-                const full = `${cleanSd}.${this.globalBot.rootDomain}`;
-                let st = 500;
-                try {
-                    st = await this.globalBot.addSubdomain(cleanSd);
-                } catch {}
-                results.push(
-                    st === 200 ? "``` -Wildcard\n" + full + " berhasil ditambahkan.```" : `  Gagal menambahkan domain *${full}*, status: ${st}`
-                );
-            }
-            await this.sendMessage(chatId, results.join("\n\n"), { parse_mode: "Markdown" });
-        } finally {
-            if (messageIdToDelete) {
-                await this.deleteMessage(chatId, messageIdToDelete);
-            }
-        }
-        return new Response("OK", { status: 200 });
-    }
-    if (text.startsWith("/del")) {
-        if (!isOwner) {
-            await this.sendMessage(chatId, "  Anda tidak berwenang menggunakan perintah ini.");
-            return new Response("OK", { status: 200 });
-        }
-        const loadingMessage = await this.sendMessage(chatId, "Sedang memproses...");
-        const messageIdToDelete = loadingMessage && loadingMessage.result ? loadingMessage.result.message_id : null;
-        try {
-            if (text === "/del") {
-                this.awaitingDeleteList[chatId] = true;
-                await this.sendMessage(
-                    chatId,
-                    `\`\`\`Contoh
-📝 Silakan kirim daftar subdomain yang ingin dihapus (satu per baris).
+    const now = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 
-/del
-ava.game.naver.com
-zaintest.vuclip.com
-support.zoom.us
-\`\`\``,
-                    { parse_mode: "MarkdownV2" }
-                );
-                return new Response("OK", { status: 200 });
-            }
-            const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-            const firstLine = lines[0];
-            const restLines = lines.slice(1);
-            let toDelete = [];
-            if (firstLine.includes(" ") && restLines.length === 0) {
-                toDelete = firstLine.split(" ").slice(1).map((s) => s.trim()).filter(Boolean);
-            } else if (restLines.length > 0) {
-                toDelete = restLines;
-            }
-            if (toDelete.length === 0) {
-                await this.sendMessage(chatId, "   Mohon sertakan satu atau lebih subdomain setelah /del.");
-                return new Response("OK", { status: 200 });
-            }
-            const results = [];
-            for (const raw of toDelete) {
-                let d = raw.toLowerCase().trim();
-                let sd;
-                if (d.endsWith(`.${this.globalBot.rootDomain}`)) {
-                    sd = d.slice(0, d.lastIndexOf(`.${this.globalBot.rootDomain}`));
-                } else {
-                    sd = d;
-                }
-                const full = `${sd}.${this.globalBot.rootDomain}`;
-                let st = 500;
-                try {
-                    st = await this.globalBot.deleteSubdomain(sd);
-                } catch {}
-                if (st === 200) results.push(`\`\`\`Wildcard
-${full}deleted successfully.\`\`\``);
-                else if (st === 404) results.push(`   Domain *${full}* tidak ditemukan.`);
-                else results.push(`  Gagal menghapus domain *${full}*, status: ${st}.`);
-            }
-            await this.sendMessage(chatId, results.join("\n\n"), { parse_mode: "Markdown" });
-        } finally {
-            if (messageIdToDelete) {
-                await this.deleteMessage(chatId, messageIdToDelete);
-            }
+    // Handle /add command
+    if (text.startsWith("/add")) {
+      const loadingMessage = await this.sendMessage(chatId, "Sedang memproses...", options);
+      const messageIdToDelete = loadingMessage?.result?.message_id;
+      
+      try {
+        const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+        const firstLine = lines[0];
+        const restLines = lines.slice(1);
+        let subdomains = [];
+        
+        if (firstLine.includes(" ") && restLines.length === 0) {
+          subdomains = firstLine.split(" ").slice(1).map((s) => s.trim()).filter(Boolean);
+        } else if (restLines.length > 0) {
+          subdomains = restLines;
         }
-        return new Response("OK", { status: 200 });
+        
+        if (subdomains.length === 0) {
+          await this.sendMessage(
+            chatId,
+            "Mohon sertakan satu atau lebih subdomain setelah /add.",
+            options
+          );
+          return new Response("OK", { status: 200 });
+        }
+        
+        const results = [];
+        for (const sd of subdomains) {
+          const cleanSd = sd.trim();
+          const full = `${cleanSd}.${this.globalBot.rootDomain}`;
+          let st = 500;
+          
+          try {
+            st = await this.globalBot.addSubdomain(cleanSd);
+          } catch {}
+          
+          results.push(
+            st === 200 ? 
+            `${full} berhasil ditambahkan.` : 
+            `Gagal menambahkan domain ${full}, status: ${st}`
+          );
+        }
+        
+        await this.sendMessage(chatId, results.join("\n\n"), options);
+      } finally {
+        if (messageIdToDelete) {
+          await this.deleteMessage(chatId, messageIdToDelete);
+        }
+      }
+      
+      return new Response("OK", { status: 200 });
     }
+
+    // Handle /del command
+    if (text.startsWith("/del")) {
+      if (!isOwner) {
+        await this.sendMessage(chatId, "Anda tidak berwenang menggunakan perintah ini.", options);
+        return new Response("OK", { status: 200 });
+      }
+      
+      const args = text.split(" ").slice(1);
+      if (args.length === 0) {
+        await this.sendMessage(
+          chatId,
+          "Gunakan `/del [nomor]` untuk menghapus wildcard.\nContoh: `/del 1 3 5`\nGunakan `/list` untuk melihat daftar nomor.",
+          { parse_mode: "Markdown", ...options }
+        );
+        return new Response("OK", { status: 200 });
+      }
+      
+      const loadingMessage = await this.sendMessage(chatId, "Sedang memproses...", options);
+      const messageIdToDelete = loadingMessage?.result?.message_id;
+      
+      try {
+        const domainObjects = await this.globalBot.getDomainObjects();
+        if (domainObjects.length === 0) {
+          await this.sendMessage(chatId, "Tidak ada wildcard yang terdaftar untuk dihapus.", options);
+          return new Response("OK", { status: 200 });
+        }
+        
+        const indicesToDelete = args.map((n) => parseInt(n, 10)).filter((n) => !isNaN(n));
+        if (indicesToDelete.length === 0) {
+          await this.sendMessage(chatId, "Mohon sertakan nomor yang valid untuk dihapus.", options);
+          return new Response("OK", { status: 200 });
+        }
+        
+        const results = [];
+        for (const index of indicesToDelete) {
+          if (index < 1 || index > domainObjects.length) {
+            results.push(`Nomor ${index} tidak valid.`);
+            continue;
+          }
+          
+          const domainObjectToDelete = domainObjects[index - 1];
+          const domainId = domainObjectToDelete.id;
+          const domainHostname = domainObjectToDelete.hostname;
+          const url = `https://api.cloudflare.com/client/v4/accounts/${this.globalBot.accountID}/workers/domains/${domainId}`;
+          let status = 500;
+          
+          try {
+            const res = await fetch(url, {
+              method: "DELETE",
+              headers: this.globalBot.headers
+            });
+            status = res.status;
+          } catch (e) {
+            console.error(`Error deleting ${domainHostname}:`, e);
+          }
+          
+          if (status === 200) {
+            results.push(`Berhasil menghapus ${domainHostname} (Nomor ${index})`);
+          } else {
+            results.push(`Gagal menghapus ${domainHostname} (Nomor ${index}), status: ${status}`);
+          }
+        }
+        
+        await this.sendMessage(chatId, results.join("\n"), options);
+      } finally {
+        if (messageIdToDelete) {
+          await this.deleteMessage(chatId, messageIdToDelete);
+        }
+      }
+      
+      return new Response("OK", { status: 200 });
+    }
+    
+    // Handle /list command
     if (text.startsWith("/list")) {
       let domains = [];
       try {
         domains = await this.globalBot.getDomainList();
-      } catch {
-      }
+      } catch {}
+      
       if (!domains.length) {
-        await this.sendMessage(chatId, "*No subdomains registered yet.*", { parse_mode: "MarkdownV2" });
+        await this.sendMessage(chatId, "No subdomains registered yet.", options);
       } else {
-        const listText = domains.map(
-          (d, i) => `${i + 1}\\. \`${this.escapeMarkdownV2(d)}\``
-          // Hanya domain yang di-backtick
-        ).join("\n");
+        const listText = domains.map((d, i) => `${i + 1}. ${d}`).join("\n");
+        
         await this.sendMessage(
           chatId,
-          ` LIST CUSTOM DOMAIN :
-
-${listText}
-
- Total: *${domains.length}* subdomain${domains.length > 1 ? "s" : ""}`,
-          { parse_mode: "MarkdownV2" }
+          `📋 LIST WILDCARD BUG :\n\n${listText}\n\n📊 Total: ${domains.length} Wildcard${domains.length > 1 ? "s" : ""}`,
+          options
         );
+        
         const fileContent = domains.map((d, i) => `${i + 1}. ${d}`).join("\n");
-        await this.sendDocument(chatId, fileContent, "wildcard-list.txt", "text/plain");
+        await this.sendDocument(chatId, fileContent, "wildcard-list.txt", "text/plain", options);
       }
+      
       return new Response("OK", { status: 200 });
     }
+
+    // Handle /approve command
     if (text.startsWith("/approve ")) {
       if (!isOwner) {
-        await this.sendMessage(chatId, `
-\`\`\`
- Anda tidak berwenang menggunakan perintah ini.
-\`\`\`
-`);
+        await this.sendMessage(chatId, "Anda tidak berwenang menggunakan perintah ini.", options);
         return new Response("OK", { status: 200 });
       }
+      
       const sd = text.split(" ")[1]?.trim();
       if (!sd) return new Response("OK", { status: 200 });
+      
       const full = `${sd}.${this.globalBot.rootDomain}`;
       const req = this.globalBot.findPendingRequest(sd);
+      
       if (!req) {
-        await this.sendMessage(chatId, ` Tidak ada request pending untuk subdomain *${full}*.`, { parse_mode: "Markdown" });
+        await this.sendMessage(chatId, `Tidak ada request pending untuk subdomain ${full}.`, options);
       } else {
         let st = 500;
         try {
           st = await this.globalBot.addSubdomain(sd);
-        } catch {
-        }
+        } catch {}
+        
         if (st === 200) {
           this.globalBot.updateRequestStatus(sd, "approved");
-          await this.sendMessage(chatId, `\`\`\`
- Wildcard ${full} disetujui dan ditambahkan.
-\`\`\``, { parse_mode: "Markdown" });
-          await this.sendMessage(req.requesterId, `\`\`\`
- Permintaan Wildcard ${full} Anda telah disetujui pada:
-${now}
-\`\`\``, { parse_mode: "Markdown" });
+          await this.sendMessage(chatId, `✅ Wildcard ${full} disetujui dan ditambahkan.`, options);
+          await this.sendMessage(req.requesterId, `✅ Permintaan Wildcard ${full} Anda telah disetujui pada:\n${now}`);
         } else {
-          await this.sendMessage(chatId, ` Gagal menambahkan domain *${full}*, status: ${st}`, { parse_mode: "Markdown" });
+          await this.sendMessage(chatId, `❌ Gagal menambahkan domain ${full}, status: ${st}`, options);
         }
       }
+      
       return new Response("OK", { status: 200 });
     }
+
+    // Handle /reject command
     if (text.startsWith("/reject ")) {
       if (!isOwner) {
-        await this.sendMessage(chatId, "```\n Anda tidak berwenang menggunakan perintah ini.\n```");
+        await this.sendMessage(chatId, "Anda tidak berwenang menggunakan perintah ini.", options);
         return new Response("OK", { status: 200 });
       }
+      
       const sd = text.split(" ")[1]?.trim();
       if (!sd) return new Response("OK", { status: 200 });
+      
       const full = `${sd}.${this.globalBot.rootDomain}`;
       const req = this.globalBot.findPendingRequest(sd);
+      
       if (!req) {
-        await this.sendMessage(chatId, ` Tidak ada request pending untuk subdomain *${full}*.`, { parse_mode: "Markdown" });
+        await this.sendMessage(chatId, `Tidak ada request pending untuk subdomain ${full}.`, options);
       } else {
         this.globalBot.updateRequestStatus(sd, "rejected");
-        await this.sendMessage(
-          chatId,
-          "```\n Wildcard " + full + " telah ditolak.\n```",
-          { parse_mode: "Markdown" }
-        );
-        await this.sendMessage(
-          req.requesterId,
-          "```\n Permintaan Wildcard " + full + " Anda telah ditolak pada:\n" + now + "\n```",
-          { parse_mode: "Markdown" }
-        );
+        await this.sendMessage(chatId, `❌ Wildcard ${full} telah ditolak.`, options);
+        await this.sendMessage(req.requesterId, `❌ Permintaan Wildcard ${full} Anda telah ditolak pada:\n${now}`);
       }
+      
       return new Response("OK", { status: 200 });
     }
+
+    // Handle /req command
     if (text.startsWith("/req")) {
       if (!isOwner) {
-        await this.sendMessage(chatId, " Anda tidak berwenang melihat daftar request.", { parse_mode: "MarkdownV2" });
+        await this.sendMessage(chatId, "Anda tidak berwenang melihat daftar request.", options);
         return new Response("OK", { status: 200 });
       }
+      
       const all = this.globalBot.getAllRequests();
+      
       if (!all.length) {
-        await this.sendMessage(chatId, " Belum ada request subdomain masuk.", { parse_mode: "MarkdownV2" });
+        await this.sendMessage(chatId, "Belum ada request subdomain masuk.", options);
       } else {
         let lines = "";
         all.forEach((r, i) => {
-          const domain = this.escapeMarkdownV2(r.domain);
-          const status = this.escapeMarkdownV2(r.status);
-          const requester = this.escapeMarkdownV2(r.requesterUsername);
-          const requesterId = this.escapeMarkdownV2(r.requesterId.toString());
-          const time = this.escapeMarkdownV2(r.requestTime);
-          lines += `*${i + 1}\\. ${domain}* — _${status}_
-`;
-          lines += `   requester: @${requester} \\(ID: ${requesterId}\\)
-`;
-          lines += `   waktu: ${time}
-
-`;
+          const domain = r.domain;
+          const status = r.status;
+          const requester = r.requesterUsername;
+          const requesterId = r.requesterId.toString();
+          const time = r.requestTime;
+          
+          lines += `${i + 1}. ${domain} — ${status}\n`;
+          lines += `   👤 requester: @${requester} (ID: ${requesterId})\n`;
+          lines += `   🕒 waktu: ${time}\n\n`;
         });
-        const message = ` *Daftar Semua Request:*
-
-${lines}`;
-        await this.sendMessage(chatId, message, { parse_mode: "MarkdownV2" });
+        
+        const message = `📋 Daftar Semua Request:\n\n${lines}`;
+        await this.sendMessage(chatId, message, options);
       }
+      
       return new Response("OK", { status: 200 });
     }
+
     return new Response("OK", { status: 200 });
   }
+
   async sendMessage(chatId, text, options = {}) {
-    const payload = { chat_id: chatId, text, ...options };
-    await fetch(`${this.apiUrl}/bot${this.token}/sendMessage`, {
+    const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
+    const body = { chat_id: chatId, text, ...options };
+    
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(body)
     });
+    
+    return response.json();
   }
-  async sendDocument(chatId, content, filename, mimeType) {
+
+  async sendDocument(chatId, content, filename, mimeType, options = {}) {
     const formData = new FormData();
-    formData.append("chat_id", chatId.toString());
-    formData.append("document", new Blob([content], { type: mimeType }), filename);
-    await fetch(`${this.apiUrl}/bot${this.token}/sendDocument`, {
+    const blob = new Blob([content], { type: mimeType });
+    
+    formData.append("document", blob, filename);
+    formData.append("chat_id", String(chatId));
+    
+    if (options.message_thread_id) {
+      formData.append("message_thread_id", String(options.message_thread_id));
+    }
+    if (options.caption) {
+      formData.append("caption", options.caption);
+    }
+    if (options.parse_mode) {
+      formData.append("parse_mode", options.parse_mode);
+    }
+    if (options.reply_to_message_id) {
+      formData.append("reply_to_message_id", String(options.reply_to_message_id));
+    }
+    
+    const response = await fetch(`${this.apiUrl}/bot${this.token}/sendDocument`, {
       method: "POST",
       body: formData
     });
+    
+    return response.json();
   }
+
   async deleteMessage(chatId, messageId) {
     const url = `${this.apiUrl}/bot${this.token}/deleteMessage`;
     const body = { chat_id: chatId, message_id: messageId };
+    
     await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
     });
   }
-};
+}
 
 // src/bot.js
-const HOSTKU = "joss.krikkrik.web.id";
+const HOSTKU = "joss.krekkrek.web.id";
 const TelegramBot = class {
   static {
     __name(this, "TelegramBot");
@@ -3599,6 +3766,8 @@ const TelegramBot = class {
       const { chat, text: messageText } = update.message;
       const chatId = chat.id;
       const text = messageText?.trim() || "";
+      const message_thread_id = update.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
       if (text.startsWith("/config")) {
         const helpMsg = ` *PANDUAN CONFIG ROTATE* 
 
@@ -3615,21 +3784,21 @@ Contoh:
 \`rotate my\`
 
 Bot akan memilih IP secara acak dari negara tersebut dan mengirimkan config-nya.`;
-        await this.sendMessage(chatId, helpMsg, { parse_mode: "Markdown" });
+        await this.sendMessage(chatId, helpMsg, { parse_mode: "Markdown", ...options });
         return new Response("OK", { status: 200 });
       }
       if (text.startsWith("rotate ")) {
-        await rotateconfig.call(this, chatId, text);
+        await rotateconfig.call(this, chatId, text, options);
         return new Response("OK", { status: 200 });
       }
       if (text.startsWith("/randomconfig")) {
-  const loadingMsg = await this.sendMessageWithDelete(chatId, " Membuat konfigurasi acak...");
+  const loadingMsg = await this.sendMessageWithDelete(chatId, "  Membuat konfigurasi acak...", options);
   try {
     const configText = await randomconfig();
-    await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
+    await this.sendMessage(chatId, configText, { parse_mode: "Markdown", ...options });
   } catch (error) {
     console.error("Error generating random config:", error);
-    await this.sendMessage(chatId, ` Terjadi kesalahan:\n${error.message}`);
+    await this.sendMessage(chatId, `  Terjadi kesalahan:\n${error.message}`, options);
   }
   if (loadingMsg && loadingMsg.message_id) {
     await this.deleteMessage(chatId, loadingMsg.message_id);
@@ -3648,7 +3817,7 @@ if (text.startsWith("/listwildcard")) {
 
  *Modded By:* [Geo Project](https://t.me/sampiiiiu)`;
   
-  await this.sendMessage(chatId, configText, { parse_mode: "Markdown" });
+  await this.sendMessage(chatId, configText, { parse_mode: "Markdown", ...options });
   return new Response("OK", { status: 200 });
 }
 }
@@ -3674,6 +3843,7 @@ if (text.startsWith("/listwildcard")) {
       chat_id: chatId,
       message_id: messageId,
       text,
+      parse_mode: "Markdown",
       ...options
     };
     const response = await fetch(url, {
@@ -3724,270 +3894,6 @@ if (text.startsWith("/listwildcard")) {
   }
 };
 
-// src/kuota.js
-const CekkuotaBotku = class _CekkuotaBotku {
-  static {
-    __name(this, "CekkuotaBotku");
-  }
-  constructor(token, apiUrl = "https://api.telegram.org") {
-    this.token = token;
-    this.apiUrl = apiUrl;
-    this.baseUrl = `${this.apiUrl}/bot${this.token}`;
-  }
-
-  async sendMessage(chatId, text, options = {}) {
-    const url = `${this.baseUrl}/sendMessage`;
-    const body = {
-      chat_id: chatId,
-      text,
-      ...options
-    };
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) throw new Error(`Telegram API error: ${res.status}`);
-      return res.json();
-    } catch (err) {
-      console.error(`[ERROR] Send message:`, err.message);
-      return null;
-    }
-  }
-
-  async deleteMessage(chatId, messageId) {
-    const url = `${this.baseUrl}/deleteMessage`;
-    try {
-      await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, message_id: messageId })
-      });
-    } catch (err) {
-      console.error(`[ERROR] Delete message:`, err.message);
-    }
-  }
-
-  async sendChatAction(chatId, action) {
-    const url = `${this.baseUrl}/sendChatAction`;
-    try {
-      await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, action })
-      });
-    } catch (err) {
-      console.error(`[ERROR] Send chat action:`, err.message);
-    }
-  }
-
-  // SOLUSI: Gunakan API yang sama tapi dengan approach berbeda
-  async checkQuota(msisdn) {
-    // Coba format nomor yang berbeda
-    const numbersToTry = [
-      msisdn,
-      msisdn.startsWith('62') ? '0' + msisdn.substring(2) : msisdn,
-      msisdn.startsWith('0') ? '62' + msisdn.substring(1) : msisdn
-    ];
-
-    for (const num of numbersToTry) {
-      try {
-        console.log(`[TRY] Attempting with number: ${num}`);
-        const result = await this._makeRequest(num);
-        if (result) return result;
-      } catch (err) {
-        console.log(`[FAIL] Failed with ${num}:`, err.message);
-        continue;
-      }
-    }
-    
-    throw new Error('Semua format nomor gagal');
-  }
-
-  async _makeRequest(msisdn) {
-    const url = `https://apigw.kmsp-store.com/sidompul/v4/cek_kuota?msisdn=${msisdn}&isJSON=true`;
-    
-    // Buat request dengan fetch options yang minimal
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 detik timeout
-    
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          'Authorization': 'Basic c2lkb21wdWxhcGk6YXBpZ3drbXNw',
-          'X-API-Key': '60ef29aa-a648-4668-90ae-20951ef90c55', 
-          'X-App-Version': '4.0.0',
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; Bot)'
-        },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      console.log(`[RESPONSE] Status: ${res.status}`);
-      
-      if (res.status === 403) {
-        throw new Error('Akses ditolak oleh server (403)');
-      }
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      
-      const data = await res.json();
-      console.log(`[DATA] Response:`, data);
-      
-      if (data.status === true) {
-        return data;
-      } else {
-        throw new Error(data.message || 'Response tidak valid');
-      }
-      
-    } catch (err) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') {
-        throw new Error('Timeout - Server tidak merespons');
-      }
-      throw err;
-    }
-  }
-
-  // SOLUSI ALTERNATIF: Jika tetap gagal, berikan template response
-  _createFallbackResponse(msisdn) {
-    return {
-      status: true,
-      data: {
-        msisdn: msisdn,
-        hasil: ` RESULT: <br><br>MSISDN: ${msisdn}<br><br> <b>API sedang tidak dapat diakses</b><br><br> <b>Solusi:</b><br>� Coba lagi nanti<br>� Gunakan website resmi<br>� Pastikan nomor aktif<br><br> <i>Powered by Geo Project</i>`
-      }
-    };
-  }
-
-  _formatResult(hasil) {
-    if (!hasil) return " Data tidak tersedia";
-    
-    let cleaned = hasil
-      .replace(/<br>/g, '\n')
-      .replace(/<br\/>/g, '\n')
-      .replace(/<\/?[^>]+(>|$)/g, '')
-      .replace(/\\ud83d\\udcc3/g, '')
-      .replace(/\\u274c/g, '')
-      .replace(/\\u2705/g, '')
-      .replace(/\\ud83c\\udf81/g, '')
-      .replace(/\\ud83c\\udf42/g, '')
-      .replace(/\\ud83c\\udf32/g, '');
-    
-    cleaned = cleaned
-      .replace(/RESULT:/g, ' HASIL CEK KUOTA:')
-      .replace(/MSISDN:/g, ' NOMOR:')
-      .replace(/Tipe Kartu:/g, ' TIPE KARTU:')
-      .replace(/Status Volte Device:/g, ' VOLTE DEVICE:')
-      .replace(/Status Volte Area:/g, ' VOLTE AREA:')
-      .replace(/Status Volte Simcard:/g, ' VOLTE SIMCARD:')
-      .replace(/Status 4G:/g, ' STATUS 4G:')
-      .replace(/Status Dukcapil:/g, ' DUKCAPIL:')
-      .replace(/Umur Kartu:/g, ' UMUR KARTU:')
-      .replace(/Masa Aktif:/g, ' MASA AKTIF:')
-      .replace(/Masa Berakhir Tenggang:/g, ' MASA TENGGANG:')
-      .replace(/Quota:/g, ' PAKET:')
-      .replace(/Aktif Hingga:/g, ' BERLAKU HINGGA:')
-      .replace(/Benefit:/g, ' BENEFIT:')
-      .replace(/Tipe Kuota:/g, ' TIPE KUOTA:')
-      .replace(/Kuota:/g, ' TOTAL KUOTA:')
-      .replace(/Sisa Kuota:/g, ' SISA KUOTA:');
-    
-    return cleaned;
-  }
-
-  async handleUpdate(update) {
-    const msg = update.message;
-    const chatId = msg?.chat?.id;
-    const messageId = msg?.message_id;
-    const text = msg?.text?.trim() || "";
-    const from = msg?.from || {};
-    const username = from.username || from.first_name || "User";
-    
-    if (!chatId || !text) return;
-
-    if (text.startsWith("/help") || text.startsWith("/start")) {
-      const helpText = `
- <b>BOT CEK KUOTA XL</b>
-
- <b>Cara Penggunaan:</b>
-Kirim nomor HP XL untuk cek kuota
-
- <b>Format:</b>
-<code>08xxxxxx</code> atau <code>628xxxxxx</code>
-
- <b>Contoh:</b>
-<code>081234567890</code>
-<code>087812345678</code>
-
- <b>Note:</b>
-� Hanya untuk nomor XL
-� Jika gagal, coba beberapa saat lagi
-      `;
-      return this.sendMessage(chatId, helpText, { parse_mode: "HTML" });
-    }
-
-    const phoneNumbers = text.split(/\s+/).filter((num) => {
-      const cleanNum = num.replace(/[^\d]/g, '');
-      return (cleanNum.startsWith("08") || cleanNum.startsWith("628")) && cleanNum.length >= 10 && cleanNum.length <= 14;
-    }).map(num => num.replace(/[^\d]/g, ''));
-    
-    if (phoneNumbers.length === 0) {
-      return this.sendMessage(chatId, " Format nomor tidak valid. Gunakan /help untuk bantuan.", { parse_mode: "HTML" });
-    }
-
-    const loadingMessage = await this.sendMessage(chatId, ` Memproses ${phoneNumbers.length} nomor...`);
-    const loadingMessageId = loadingMessage?.result?.message_id;
-    
-    await this.sendChatAction(chatId, "typing");
-    
-    const allResponses = [];
-    
-    for (const number of phoneNumbers) {
-      try {
-        console.log(`[PROCESS] Number: ${number}`);
-        
-        let apiRes;
-        try {
-          apiRes = await this.checkQuota(number);
-        } catch (error) {
-          console.log(`[FALLBACK] Using fallback for ${number}`);
-          apiRes = this._createFallbackResponse(number);
-        }
-        
-        if (apiRes.status && apiRes.data) {
-          const formattedResult = this._formatResult(apiRes.data.hasil);
-          allResponses.push(` <b>User:</b> ${username}\n${formattedResult}`);
-        } else {
-          allResponses.push(` <b>Gagal untuk ${number}:</b>\n${apiRes.data?.keteranganError || apiRes.message || "Error tidak diketahui"}`);
-        }
-        
-      } catch (err) {
-        console.error(`[FINAL ERROR] ${number}:`, err.message);
-        allResponses.push(` <b>Error untuk ${number}:</b>\n${err.message}\n\n <i>Server API sedang maintenance</i>`);
-      }
-    }
-    
-    if (loadingMessageId) {
-      await this.deleteMessage(chatId, loadingMessageId);
-    }
-    
-    if (allResponses.length > 0) {
-      await this.sendMessage(chatId, allResponses.join("\n\n"), { parse_mode: "HTML" });
-    }
-    
-    if (messageId) {
-      await this.deleteMessage(chatId, messageId);
-    }
-  }
-};
-
 // src/sublink/sublink.js
 const sublinkState = new Map();
 const SublinkBuilderBot = class {
@@ -4002,8 +3908,11 @@ const SublinkBuilderBot = class {
     if (update.message && update.message.text) {
       const chatId = update.message.chat.id;
       const text = update.message.text.trim();
+      const message_thread_id = update.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
+
       if (text === '/sublink') {
-        return this.start(chatId);
+        return this.start(chatId, options);
       }
 
       const state = sublinkState.get(chatId);
@@ -4011,11 +3920,11 @@ const SublinkBuilderBot = class {
         if (state.step === 'bug') {
           state.bug = text;
           state.step = 'limit';
-          await this.sendMessage(chatId, "Masukkan limit (angka antara 1-20):");
+          await this.sendMessage(chatId, "Masukkan limit (angka antara 1-20):", options);
         } else if (state.step === 'limit') {
           const limit = parseInt(text, 10);
           if (isNaN(limit) || limit < 1 || limit > 20) {
-            await this.sendMessage(chatId, "Input tidak valid. Silakan masukkan angka antara 1 dan 20.");
+            await this.sendMessage(chatId, "Input tidak valid. Silakan masukkan angka antara 1 dan 20.", options);
           } else {
             state.limit = limit;
             state.step = 'country';
@@ -4060,7 +3969,7 @@ const SublinkBuilderBot = class {
                 ]
               ]
             };
-            await this.sendMessage(chatId, "Pilih negara:", { reply_markup: keyboard });
+            await this.sendMessage(chatId, "Pilih negara:", { reply_markup: keyboard, ...options });
           }
         }
       }
@@ -4070,6 +3979,8 @@ const SublinkBuilderBot = class {
       const chatId = update.callback_query.message.chat.id;
       const messageId = update.callback_query.message.message_id;
       const data = update.callback_query.data;
+      const message_thread_id = update.callback_query.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
       const state = sublinkState.get(chatId);
 
       if (!state || !data.startsWith('sublink_')) {
@@ -4088,7 +3999,7 @@ const SublinkBuilderBot = class {
             [{ text: "Shadowsocks", callback_data: "sublink_type_shadowsocks" }]
           ]
         };
-        await this.editMessageText(chatId, messageId, "Pilih tipe protokol:", { reply_markup: keyboard });
+        await this.editMessageText(chatId, messageId, "Pilih tipe protokol:", { reply_markup: keyboard, ...options });
       } else if (step === 'type' && state.step === 'type') {
         state.type = value;
         state.step = 'tls';
@@ -4097,7 +4008,7 @@ const SublinkBuilderBot = class {
             [{ text: "True", callback_data: "sublink_tls_true" }, { text: "False", callback_data: "sublink_tls_false" }]
           ]
         };
-        await this.editMessageText(chatId, messageId, "Gunakan TLS?", { reply_markup: keyboard });
+        await this.editMessageText(chatId, messageId, "Gunakan TLS?", { reply_markup: keyboard, ...options });
       } else if (step === 'tls' && state.step === 'tls') {
         state.tls = value;
         state.step = 'wildcard';
@@ -4106,30 +4017,30 @@ const SublinkBuilderBot = class {
             [{ text: "True", callback_data: "sublink_wildcard_true" }, { text: "False", callback_data: "sublink_wildcard_false" }]
           ]
         };
-        await this.editMessageText(chatId, messageId, "Gunakan Wildcard?", { reply_markup: keyboard });
+        await this.editMessageText(chatId, messageId, "Gunakan Wildcard?", { reply_markup: keyboard, ...options });
       } else if (step === 'wildcard' && state.step === 'wildcard') {
         state.wildcard = value;
         state.step = 'bug';
-        await this.editMessageText(chatId, messageId, "Silakan kirimkan bug host Anda (contoh: ava.game.naver.com):");
+        await this.editMessageText(chatId, messageId, "Silakan kirimkan bug host Anda (contoh: ava.game.naver.com):", options);
       } else if (step === 'country' && state.step === 'country') {
         state.country = value;
         
         // Simpan messageId yang akan dihapus nanti
         state.processingMessageId = messageId;
         
-        await this.editMessageText(chatId, messageId, "Sedang memproses permintaan Anda...");
+        await this.editMessageText(chatId, messageId, "Sedang memproses permintaan Anda...", options);
         
         // Build URL berdasarkan pilihan country
         let url;
         if (state.country === 'all') {
           // Untuk "All Countries", tidak sertakan parameter country sama sekali
-          url = `https://joss.krikkrik.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
+          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
         } else if (state.country === 'random') {
           // Untuk "Random", gunakan parameter country=random
-          url = `https://joss.krikkrik.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
+          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
         } else {
           // Untuk country spesifik, gunakan parameter country dengan kode negara
-          url = `https://joss.krikkrik.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
+          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
         }
         
         console.log(`Mengakses URL: ${url}`); // Untuk debugging
@@ -4175,7 +4086,8 @@ const SublinkBuilderBot = class {
           // Kirim dokumen dengan hasil
           await this.sendDocument(chatId, content, "sublink.txt", "text/plain", { 
             caption: caption,
-            parse_mode: "HTML"
+            parse_mode: "HTML",
+            ...options
           });
         } catch (error) {
           console.error('Error:', error);
@@ -4185,7 +4097,8 @@ const SublinkBuilderBot = class {
           
           // Kirim pesan error
           await this.sendMessage(chatId, `❌ <b>Terjadi Kesalahan</b>\n\n${error.message}\n\nSilakan coba lagi dengan parameter yang berbeda.`, {
-            parse_mode: "HTML"
+            parse_mode: "HTML",
+            ...options
           });
         } finally {
           sublinkState.delete(chatId);
@@ -4194,7 +4107,7 @@ const SublinkBuilderBot = class {
     }
     return new Response("OK", { status: 200 });
   }
-  async start(chatId) {
+  async start(chatId, options = {}) {
     sublinkState.set(chatId, { step: 'app' });
     const keyboard = {
       inline_keyboard: [
@@ -4203,12 +4116,17 @@ const SublinkBuilderBot = class {
         [{ text: "Surfboard", callback_data: "sublink_app_surfboard" }]
       ]
     };
-    await this.sendMessage(chatId, "Silakan pilih aplikasi:", { reply_markup: keyboard });
+    await this.sendMessage(chatId, "Silakan pilih aplikasi:", { reply_markup: keyboard, ...options });
     return new Response("OK", { status: 200 });
   }
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
-    const body = { chat_id: chatId, text, ...options };
+    const body = {
+      chat_id: chatId,
+      text,
+      parse_mode: "Markdown",
+      ...options
+    };
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -4222,6 +4140,7 @@ const SublinkBuilderBot = class {
       chat_id: chatId,
       message_id: messageId,
       text,
+      parse_mode: "Markdown",
       ...options
     };
     const response = await fetch(url, {
@@ -4235,20 +4154,23 @@ const SublinkBuilderBot = class {
     const formData = new FormData();
     const blob = new Blob([content], { type: mimeType });
     formData.append("document", blob, filename);
-    formData.append("chat_id", chatId.toString());
+    formData.append("chat_id", String(chatId));
+    if (options.message_thread_id) {
+      formData.append("message_thread_id", String(options.message_thread_id));
+    }
     if (options.caption) {
       formData.append("caption", options.caption);
     }
     if (options.parse_mode) {
       formData.append("parse_mode", options.parse_mode);
     }
-    const response = await fetch(
-      `${this.apiUrl}/bot${this.token}/sendDocument`,
-      {
-        method: "POST",
-        body: formData
-      }
-    );
+    if (options.reply_to_message_id) {
+      formData.append("reply_to_message_id", String(options.reply_to_message_id));
+    }
+    const response = await fetch(`${this.apiUrl}/bot${this.token}/sendDocument`, {
+      method: "POST",
+      body: formData
+    });
     return response.json();
   }
   async deleteMessage(chatId, messageId) {
@@ -4273,15 +4195,63 @@ const SublinkBuilderBot = class {
 
 // src/worker.js
 const worker_default = {
+  async isUserMember(userId, token) {
+    const groupId = "@auto_sc";
+    const url = `https://api.telegram.org/bot${token}/getChatMember?chat_id=${groupId}&user_id=${userId}`;
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.ok) {
+        const status = data.result.status;
+        return status === 'member' || status === 'administrator' || status === 'creator';
+      }
+    } catch (error) {
+      console.error("Error checking group membership:", error);
+    }
+    return false;
+  },
+
   async fetch(request, env) {
     if (request.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
     try {
       const update = await request.json();
+      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
+      const ownerId = 1467883032;
+      const groupId = "@auto_sc";
+
+      let userId;
+      let chatId;
+      if (update.message) {
+        userId = update.message.from.id;
+        chatId = update.message.chat.id;
+      } else if (update.callback_query) {
+        userId = update.callback_query.from.id;
+        chatId = update.callback_query.message.chat.id;
+      }
+
+      if (userId && userId.toString() !== ownerId.toString()) {
+        const isMember = await this.isUserMember(userId, token);
+        if (!isMember) {
+          const message = `Untuk mengakses bot ini, Anda harus bergabung dengan grup kami terlebih dahulu.`;
+          const keyboard = {
+            inline_keyboard: [
+              [{ text: "Gabung Grup", url: `https://t.me/auto_sc` }]
+            ]
+          };
+          const url = `https://api.telegram.org/bot${token}/sendMessage`;
+          await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: message, reply_markup: keyboard })
+          });
+          return new Response("OK", { status: 200 });
+        }
+      }
+
       if (update.message) {
         const chat = update.message.chat;
-        const chatId = chat.id;
         const username = chat.username || chat.first_name || "N/A";
         const allUsers = await env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
         const userExists = allUsers.some((user) => (typeof user === "object" ? user.id : user) === chatId);
@@ -4290,14 +4260,13 @@ const worker_default = {
           await env.GEO_DB.put("broadcast_users", JSON.stringify(allUsers));
         }
       }
-      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
-      const ownerId = 1467883032;
+
       const apiKey = "28595cd826561d8014059ca54712d3ca3332c";
       const accountID = "716746bfb7638b3aaa909b55740fbc60";
-      const zoneID = "340498f7e72be9e4dcd0cf2f0bcb972c";
+      const zoneID = "fe34f9ac955252fedff0a3907333b456";
       const apiEmail = "pihajamal@gmail.com";
       const serviceName = "joss";
-      const rootDomain = "krikkrik.web.id";
+      const rootDomain = "krekkrek.web.id";
       const globalBot = new KonstantaGlobalbot({
         apiKey,
         accountID,
@@ -4321,20 +4290,26 @@ const worker_default = {
           bot = new SublinkBuilderBot(token, "https://api.telegram.org");
         }
       } else if (update.message && update.message.text) {
+        // Membersihkan command dari mention bot (e.g., /start@namabot -> /start)
+        const commandParts = update.message.text.trim().split(" ");
+        commandParts[0] = commandParts[0].split("@")[0];
+        update.message.text = commandParts.join(" ");
+
         const chatId = update.message.chat.id;
-        const text = update.message.text.trim();
+        const text = update.message.text; // Sekarang `text` sudah bersih
+
         if (sublinkState.has(chatId)) {
           bot = new SublinkBuilderBot(token, "https://api.telegram.org");
         } else if (text.startsWith("/config") || text.startsWith("rotate ") || text.startsWith("/randomconfig") || text.startsWith("/listwildcard")) {
           bot = new TelegramBot(token, "https://api.telegram.org", ownerId, globalBot);
-        } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/proxyip") || text.startsWith("/ping")) {
+        } else if (text.startsWith("/proxyip")) {
+          bot = new TelegramProxyBot(token, "https://api.telegram.org");
+        } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/ping")) {
           bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
         } else if (text.match(/^(\d{1,3}(?:\.\d{1,3}){3}):?(\d{1,5})?$/) && !text.includes("://")) {
           bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/add") || text.startsWith("/del") || text.startsWith("/list") || text.startsWith("/approve ") || text.startsWith("/reject ") || text.startsWith("/req")) {
           bot = new TelegramWildcardBot(token, "https://api.telegram.org", ownerId, globalBot);
-        } else if (text.startsWith("/help") || text.split(/\s+/).some((num) => (num.startsWith("08") || num.startsWith("628")) && num.length >= 10 && num.length <= 14)) {
-          bot = new CekkuotaBotku(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/broadcast") || text.startsWith("/userlist") || text.startsWith("/converter") || text.includes("://")) {
           bot = new Converterbot(token, "https://api.telegram.org", ownerId, env);
         } else if (text.startsWith("/sublink")) {
@@ -4359,4 +4334,3 @@ const worker_default = {
 export {
   worker_default as default
 };
-
