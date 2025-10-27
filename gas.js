@@ -1243,11 +1243,22 @@ ${userListText}`;
 
     // Handle broadcast command
     if (text.startsWith("/broadcast") && chatId.toString() === this.ownerId.toString()) {
-      const broadcastMessage = text.substring("/broadcast ".length).trim();
-      if (broadcastMessage) {
-        await this.sendBroadcastMessage(broadcastMessage);
+      const reply = update.message.reply_to_message;
+      const caption = text.substring("/broadcast".length).trim();
+
+      if (reply && reply.photo) {
+        const photoId = reply.photo[reply.photo.length - 1].file_id;
+        await this.sendBroadcastPhoto(photoId, caption);
+      } else if (reply && reply.video) {
+        const videoId = reply.video.file_id;
+        await this.sendBroadcastVideo(videoId, caption);
       } else {
-        await this.sendMessage(chatId, "📢 **Cara Penggunaan Broadcast:**\n\n`/broadcast Pesan yang ingin Anda siarkan.`\n\n💡 *Contoh:* `/broadcast Halo semua! Ini pesan broadcast.`");
+        const broadcastMessage = text.substring("/broadcast ".length).trim();
+        if (broadcastMessage) {
+          await this.sendBroadcastMessage(broadcastMessage);
+        } else {
+          await this.sendMessage(chatId, "📢 **Cara Penggunaan Broadcast:**\n\n`/broadcast Pesan yang ingin Anda siarkan.`\n\n💡 *Contoh:* `/broadcast Halo semua! Ini pesan broadcast.`\n\n🖼️ **Untuk mengirim media:** Balas gambar atau video dengan `/broadcast [keterangan]`.");
+        }
       }
       return new Response("OK", { status: 200 });
     }
@@ -1466,6 +1477,20 @@ return new Response("OK", { status: 200 });
     });
     return response.json();
   }
+  async sendVideo(chatId, video, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/sendVideo`;
+    const body = {
+      chat_id: chatId,
+      video,
+      ...options
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return response.json();
+  }
   async deleteMessage(chatId, messageId) {
     const url = `${this.apiUrl}/bot${this.token}/deleteMessage`;
     const body = { chat_id: chatId, message_id: messageId };
@@ -1507,6 +1532,20 @@ return new Response("OK", { status: 200 });
     );
     return response.json();
   }
+  async sendPhoto(chatId, photo, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/sendPhoto`;
+    const body = {
+      chat_id: chatId,
+      photo,
+      ...options
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return response.json();
+  }
   async answerCallbackQuery(callbackQueryId, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/answerCallbackQuery`;
     const body = { callback_query_id: callbackQueryId, ...options };
@@ -1541,6 +1580,70 @@ return new Response("OK", { status: 200 });
     await this.env.GEO_DB.put("broadcast_users", JSON.stringify(updatedUsers));
     const totalUsers = updatedUsers.length;
     const broadcastReport = `Pesan broadcast telah dikirimkan.
+
+Total user terdaftar: *${totalUsers}*
+Berhasil dikirim: *${successCount}*
+Gagal dikirim: *${failCount}*`;
+    await this.sendMessage(this.ownerId, broadcastReport);
+  }
+
+  async sendBroadcastVideo(videoId, caption) {
+    const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+    let successCount = 0;
+    let failCount = 0;
+    const updatedUsers = [];
+    for (const user of userChats) {
+      const chatId = typeof user === 'object' ? user.id : user;
+      try {
+        const response = await this.sendVideo(chatId, videoId, { caption });
+        if (response.ok) {
+          successCount++;
+          updatedUsers.push(user);
+        } else {
+          failCount++;
+          console.error(`Gagal mengirim video ke ${chatId}: ${response.description}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error(`Gagal mengirim video ke ${chatId}:`, error);
+        failCount++;
+      }
+    }
+    await this.env.GEO_DB.put("broadcast_users", JSON.stringify(updatedUsers));
+    const totalUsers = updatedUsers.length;
+    const broadcastReport = `Siaran video telah dikirim.
+
+Total user terdaftar: *${totalUsers}*
+Berhasil dikirim: *${successCount}*
+Gagal dikirim: *${failCount}*`;
+    await this.sendMessage(this.ownerId, broadcastReport);
+  }
+
+  async sendBroadcastPhoto(photoId, caption) {
+    const userChats = await this.env.GEO_DB.get("broadcast_users", { type: "json" }) || [];
+    let successCount = 0;
+    let failCount = 0;
+    const updatedUsers = [];
+    for (const user of userChats) {
+      const chatId = typeof user === 'object' ? user.id : user;
+      try {
+        const response = await this.sendPhoto(chatId, photoId, { caption });
+        if (response.ok) {
+          successCount++;
+          updatedUsers.push(user);
+        } else {
+          failCount++;
+          console.error(`Gagal mengirim foto ke ${chatId}: ${response.description}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error(`Gagal mengirim foto ke ${chatId}:`, error);
+        failCount++;
+      }
+    }
+    await this.env.GEO_DB.put("broadcast_users", JSON.stringify(updatedUsers));
+    const totalUsers = updatedUsers.length;
+    const broadcastReport = `Siaran foto telah dikirim.
 
 Total user terdaftar: *${totalUsers}*
 Berhasil dikirim: *${successCount}*
@@ -4187,7 +4290,7 @@ const worker_default = {
           await env.GEO_DB.put("broadcast_users", JSON.stringify(allUsers));
         }
       }
-      const token = "8260084773:AAG3eaP0FbYg7FizqSeAre8GHcCOOSv1oUc";
+      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
       const ownerId = 1467883032;
       const apiKey = "28595cd826561d8014059ca54712d3ca3332c";
       const accountID = "716746bfb7638b3aaa909b55740fbc60";
@@ -4256,3 +4359,4 @@ const worker_default = {
 export {
   worker_default as default
 };
+
