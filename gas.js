@@ -2198,13 +2198,15 @@ const TelegramBotku = class {
 
         if (text === '/ping') {
             const delay = Date.now() - (update.message.date * 1000);
-            const messageText = `♥ pong ♥ ${delay} ms\nSalam Manis Dari My\n\n*Terima kasih telah menggunakan layanan kami!* 🚀`;
+            const firstMessage = 'Pong!🏓';
+            const secondMessage = 'Latency: ' + delay + 'ms';
             const replyMarkup = {
                 inline_keyboard: [
                     [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
                 ]
             };
-            await this.sendMessage(chatId, messageText, { parse_mode: "Markdown", reply_markup: replyMarkup, ...options });
+            await this.sendMessage(chatId, firstMessage, { ...options });
+            await this.sendMessage(chatId, secondMessage, { reply_markup: replyMarkup, ...options });
             return new Response("OK", { status: 200 });
         }
 
@@ -4402,8 +4404,8 @@ const worker_default = {
     }
     try {
       const update = await request.json();
-      const token = "8260084773:AAEBMBdqooLSO8maKOfKMSBCxOlh5IZ3xt8";
-      const ownerId = 1467883032;
+      const token = "8106502014:AAF9gzcTgYe4VjOkk5mVWA8qgrNb-Twl1xM";
+      const ownerId = 376534846;
       const groupId = "@auto_sc";
 
       let userId;
