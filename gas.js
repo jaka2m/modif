@@ -4402,7 +4402,7 @@ const worker_default = {
     }
     try {
       const update = await request.json();
-      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
+      const token = "8260084773:AAEBMBdqooLSO8maKOfKMSBCxOlh5IZ3xt8";
       const ownerId = 1467883032;
       const groupId = "@auto_sc";
 
