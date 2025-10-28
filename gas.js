@@ -2208,6 +2208,190 @@ const TelegramBotku = class {
             return new Response("OK", { status: 200 });
         }
 
+        if (text.startsWith("/kuota")) {
+    const args = text.split(" ");
+    const number = args[1];
+
+    if (!number) {
+        await this.sendMessage(chatId, 
+            "📱 *CEK KUOTA PAKET DATA*\n\n" +
+            "ℹ️ *Cara Penggunaan:*\n" +
+            "`/kuota <nomor_hp>`\n\n" +
+            "✨ *Contoh:*\n" +
+            "`/kuota 087812345678`\n\n" +
+            "📝 *Pastikan nomor sudah terdaftar di operator*",
+            { 
+                parse_mode: "Markdown",
+                ...options 
+            }
+        );
+        return new Response("OK", { status: 200 });
+    }
+
+    // Validasi format nomor
+    const phoneRegex = /^08[1-9][0-9]{7,10}$/;
+    if (!phoneRegex.test(number)) {
+        await this.sendMessage(chatId,
+            "❌ *FORMAT NOMOR TIDAK VALID*\n\n" +
+            "Format yang benar:\n" +
+            "• 08xxxxxxxxxx\n" +
+            "• 10-13 digit angka\n\n" +
+            "Contoh: `087812345678`",
+            { 
+                parse_mode: "Markdown",
+                ...options 
+            }
+        );
+        return new Response("OK", { status: 200 });
+    }
+
+    const loadingMessage = await this.sendMessage(chatId, 
+        "🔄 *Mengecek Kuota...*\n\n" +
+        `📞 Nomor: \`${number}\`\n` +
+        "⏳ Mohon tunggu sebentar...",
+        { 
+            parse_mode: "Markdown",
+            ...options 
+        }
+    );
+    const messageIdToDelete = loadingMessage && loadingMessage.result ? loadingMessage.result.message_id : null;
+
+    try {
+        const response = await fetch(`https://api.allorigins.win/raw?url=https://dompul.sampi.workers.dev/?msisdn=${number}`, {
+            headers: {
+                'User-Agent': 'curl/7.81.0'
+            }
+        });
+        const responseText = await response.text();
+
+        try {
+            const data = JSON.parse(responseText);
+            
+            if (data.statusCode === 200 && data.status) {
+                let resultText = data.data.hasil.replace(/<br>/g, "\n");
+                
+                // Simulasi struktur data dengan loop
+                const lines = resultText.split('\n');
+                let formattedMessage = 
+                    "📊 *INFORMASI KUOTA PAKET DATA*\n\n" +
+                    `📱 *Nomor:* \`${number}\`\n` +
+                    "━━━━━━━━━━━━━━━━━━━━\n\n";
+                
+                // Proses setiap baris dengan gaya loop
+                if (lines?.length) {
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            const trimmedLine = line.trim();
+                            
+                            // Format khusus untuk bagian penting
+                            if (trimmedLine.includes('SISA PULSA')) {
+                                formattedMessage += `💵 *${trimmedLine}*\n`;
+                            } else if (trimmedLine.includes('SISA KUOTA')) {
+                                formattedMessage += `📦 *${trimmedLine}*\n`;
+                            } else if (trimmedLine.includes('MASA AKTIF')) {
+                                formattedMessage += `⏰ *${trimmedLine}*\n`;
+                            } else if (trimmedLine.includes(':')) {
+                                const [key, value] = trimmedLine.split(':');
+                                formattedMessage += `• *${key.trim()}:* \`${value?.trim() || 'Tidak tersedia'}\`\n`;
+                            } else {
+                                formattedMessage += `📌 ${trimmedLine}\n`;
+                            }
+                        }
+                    }
+                }
+                
+                formattedMessage += "\n━━━━━━━━━━━━━━━━━━━━\n" +
+                    `🕐 *Update:* ${new Date().toLocaleString('id-ID')}\n` +
+                    "💡 *Info:* Data mungkin tertunda beberapa menit";
+                
+                await this.sendMessage(chatId, formattedMessage, { 
+                    parse_mode: "Markdown",
+                    ...options 
+                });
+                
+            } else {
+                // Handle error dengan struktur yang konsisten
+                const errorData = {
+                    success: false,
+                    message: data.message || 'Tidak ada informasi tambahan',
+                    possibleCauses: [
+                        "Nomor tidak terdaftar",
+                        "Gangguan sistem operator", 
+                        "Data tidak tersedia"
+                    ]
+                };
+                
+                if (errorData?.success === false) {
+                    let errorMessage = 
+                        "❌ *GAGAL MENGAMBIL DATA*\n\n" +
+                        `📱 Nomor: \`${number}\`\n\n` +
+                        "⚠️ *Kemungkinan penyebab:*\n";
+                    
+                    for (const cause of errorData.possibleCauses) {
+                        errorMessage += `• ${cause}\n`;
+                    }
+                    
+                    errorMessage += `\n📝 *Pesan Error:* ${errorData.message}`;
+                    
+                    await this.sendMessage(chatId, errorMessage, { 
+                        parse_mode: "Markdown",
+                        ...options 
+                    });
+                }
+            }
+        } catch (jsonError) {
+            const errorCases = [
+                "Format JSON tidak valid",
+                "Respons API bermasalah", 
+                "Data korup"
+            ];
+            
+            let errorMessage = 
+                "❌ *RESPONS TIDAK VALID*\n\n" +
+                "Terjadi kesalahan dalam memproses data.\n\n" +
+                "🔧 *Kemungkinan masalah:*\n";
+            
+            for (const errorCase of errorCases) {
+                errorMessage += `• ${errorCase}\n`;
+            }
+            
+            errorMessage += "\nSilakan coba beberapa saat lagi";
+            
+            await this.sendMessage(chatId, errorMessage, { 
+                parse_mode: "Markdown",
+                ...options 
+            });
+        }
+    } catch (fetchError) {
+        const fetchErrors = [
+            "Tidak dapat terhubung ke server",
+            "Timeout koneksi",
+            "Gangguan jaringan"
+        ];
+        
+        let errorMessage = 
+            "❌ *KONEKSI GAGAL*\n\n" +
+            "Tidak dapat terhubung ke server.\n\n" +
+            "🔧 *Kemungkinan penyebab:*\n";
+        
+        for (const error of fetchErrors) {
+            errorMessage += `• ${error}\n`;
+        }
+        
+        errorMessage += `\n📝 *Detail Error:* ${fetchError.message}`;
+        
+        await this.sendMessage(chatId, errorMessage, { 
+            parse_mode: "Markdown",
+            ...options 
+        });
+    } finally {
+        if (messageIdToDelete) {
+            await this.deleteMessage(chatId, messageIdToDelete);
+        }
+    }
+    return new Response("OK", { status: 200 });
+}
+
         if (text === "/menu") {
             const menuText = `
   
@@ -2225,7 +2409,8 @@ const TelegramBotku = class {
 │  ├─ /stats ─ Statistik Penggunaan
 │  ├─ /findproxy ─ Tutorial Cari Proxy
 │  ├─ /userlist ─ Daftar Pengguna Bot
-│  └─ /ping ─ Cek status bot
+│  ├─ /ping ─ Cek status bot
+│  └─ /kuota ─ Cek Data Paket XL
 │
 ├─ 👤 *Manajemen Wildcard*
 │  ├─ /add \\\`[bug]\\\` ─ Tambah Wildcard
@@ -4304,7 +4489,7 @@ const worker_default = {
           bot = new TelegramBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/proxyip")) {
           bot = new TelegramProxyBot(token, "https://api.telegram.org");
-        } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/ping")) {
+        } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/ping") || text.startsWith("/kuota")) {
           bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
         } else if (text.match(/^(\d{1,3}(?:\.\d{1,3}){3}):?(\d{1,5})?$/) && !text.includes("://")) {
           bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
