@@ -2597,7 +2597,7 @@ _— Tim GEO BOT SERVER_
 }
 
     if (text === "/stats") {
-      const CLOUDFLARE_API_TOKEN = "jjtpiyLT97DYmd3zVz8Q3vypTSVxDRrcVF7yTBl8";
+      const CLOUDFLARE_API_TOKEN = "CkIMfYiw6MrzYSGNU8G8IxIEIkfF2zYKzLPNJ-sw";
       const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
         const d = new Date();
         d.setDate(d.getDate() - 10);
@@ -4521,7 +4521,7 @@ const worker_default = {
     }
     try {
       const update = await request.json();
-      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
+      const token = "8106502014:AAGWAQO7sAnDcqohXmFy5Ik5_rgceKWBv6g";
       const ownerId = 1467883032;
       const groupId = "@auto_sc";
 
@@ -4565,11 +4565,12 @@ const worker_default = {
         }
       }
 
-      const apiKey = "28595cd826561d8014059ca54712d3ca3332c";
-      const accountID = "716746bfb7638b3aaa909b55740fbc60";
-      const apiEmail = "pihajamal@gmail.com";
+      const apiKey = "7c8bd61e637e39c78b11e31f43053f5b5a555";
+      const accountID = "893cc18314d9eb4418535da13969c14a";
+      const apiEmail = "andestpao83@gmail.com";
       const serviceName = "joss";
       const zones = [
+        { rootDomain: "checker-ip.web.id", zoneID: "929ebaf98fe21fc3f53bee2a53900ebe" },
         { rootDomain: "krekkrek.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
         { rootDomain: "krukkruk.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
         { rootDomain: "krikkrik.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
