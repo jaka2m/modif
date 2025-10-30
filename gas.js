@@ -1695,9 +1695,9 @@ function generateUUID() {
   });
 }
 __name(generateUUID, "generateUUID");
-async function randomconfig() {
+async function randomconfig(globalBot) {
   try {
-    const HOSTKU2 = "joss.krekkrek.web.id";
+    const HOSTKU2 = globalBot.getRandomHost();
     const GITHUB_BASE_URL = "https://raw.githubusercontent.com/jaka2m/botak/main/cek/";
     const proxyResponse = await fetch(`${GITHUB_BASE_URL}proxyList.txt`);
     if (!proxyResponse.ok) {
@@ -1788,7 +1788,7 @@ ${ssTLSLink2}
 __name(randomconfig, "randomconfig");
 
 // src/config.js
-async function rotateconfig(chatId, text, options) {
+async function rotateconfig(chatId, text, options, globalBot) {
   const command = text.trim();
   const args = command.split(" ");
   if (args.length !== 2) {
@@ -1890,7 +1890,7 @@ async function rotateconfig(chatId, text, options) {
       return v.toString(16);
     }), "generateUUID");
     const toBase642 = /* @__PURE__ */ __name((str) => typeof btoa === "function" ? btoa(unescape(encodeURIComponent(str))) : Buffer.from(str, "utf-8").toString("base64"), "toBase64");
-    const HOSTKU2 = "joss.krekkrek.web.id";
+    const HOSTKU2 = globalBot.getRandomHost();
     const path = `/Free-VPN-CF-Geo-Project/${ip}=${port}`;
     const encodedVlessLabelTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} TLS`);
     const encodedVlessLabelNTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} NTLS`);
@@ -2145,11 +2145,12 @@ const TelegramBotku = class {
         __name(this, "TelegramBotku");
     }
 
-    constructor(token, apiUrl = "https://api.telegram.org", ownerId, env) {
+    constructor(token, apiUrl = "https://api.telegram.org", ownerId, env, globalBot) {
         this.token = token;
         this.apiUrl = apiUrl;
         this.ownerId = ownerId;
         this.env = env;
+        this.globalBot = globalBot;
     }
 
     async sendDocument(chatId, content, filename, mimeType, options = {}) {
@@ -2596,134 +2597,128 @@ _— Tim GEO BOT SERVER_
 }
 
     if (text === "/stats") {
-    const CLOUDFLARE_API_TOKEN = "jjtpiyLT97DYmd3zVz8Q3vypTSVxDRrcVF7yTBl8";
-    const CLOUDFLARE_ZONE_ID = "fe34f9ac955252fedff0a3907333b456";
-    
-    const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
-        const d = /* @__PURE__ */ new Date();
+      const CLOUDFLARE_API_TOKEN = "jjtpiyLT97DYmd3zVz8Q3vypTSVxDRrcVF7yTBl8";
+      const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
+        const d = new Date();
         d.setDate(d.getDate() - 10);
         return d.toISOString().split("T")[0];
-    }, "getTenDaysAgoDate");
-
-    const tenDaysAgo = getTenDaysAgoDate();
-    const loadingMsg = await this.sendMessage(chatId, 
-        "📊 *Mengambil data statistik...*", 
+      }, "getTenDaysAgoDate");
+      const tenDaysAgo = getTenDaysAgoDate();
+      const loadingMsg = await this.sendMessage(
+        chatId,
+        "📊 *Mengambil data statistik untuk semua zona...*",
         { parse_mode: "Markdown", ...options }
-    );
-    const messageIdToDelete = loadingMsg && loadingMsg.result ? loadingMsg.result.message_id : null;
-    try {
-        const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+      );
+      const messageIdToDelete = loadingMsg?.result?.message_id;
+      try {
+        let allDailyData = [];
+        const uniqueZoneIDs = [...new Set(this.globalBot.zones.map((z) => z.zoneID))];
+        for (const zoneID of uniqueZoneIDs) {
+          const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
-                "Content-Type": "application/json"
+              Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+              "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                query: `query {
-                    viewer {
-                        zones(filter: { zoneTag: "${CLOUDFLARE_ZONE_ID}" }) {
-                            httpRequests1dGroups(
-                                limit: 10,
-                                orderBy: [date_DESC],
-                                filter: { date_geq: "${tenDaysAgo}" }
-                            ) {
-                                sum {
-                                    bytes
-                                    requests
-                                }
-                                dimensions {
-                                    date
-                                }
-                            }
-                        }
+              query: `query {
+                viewer {
+                  zones(filter: { zoneTag: "${zoneID}" }) {
+                    httpRequests1dGroups(
+                      limit: 10,
+                      orderBy: [date_DESC],
+                      filter: { date_geq: "${tenDaysAgo}" }
+                    ) {
+                      sum {
+                        bytes
+                        requests
+                      }
+                      dimensions {
+                        date
+                      }
                     }
-                }`
+                  }
+                }
+              }`
             })
+          });
+          const result = await response.json();
+          if (result.data?.viewer?.zones?.length > 0) {
+            allDailyData.push(...result.data.viewer.zones[0].httpRequests1dGroups);
+          }
+        }
+        if (allDailyData.length === 0) {
+          await this.editMessageText(
+            chatId,
+            loadingMsg.message_id,
+            "📊 *Tidak ada data pemakaian untuk 10 hari terakhir di semua zona.*",
+            { parse_mode: "Markdown" }
+          );
+          return new Response("OK", { status: 200 });
+        }
+        const dailyDataMap = new Map();
+        allDailyData.forEach((day) => {
+          const date = day.dimensions.date;
+          if (!dailyDataMap.has(date)) {
+            dailyDataMap.set(date, { bytes: 0, requests: 0 });
+          }
+          const existing = dailyDataMap.get(date);
+          existing.bytes += day.sum.bytes;
+          existing.requests += day.sum.requests;
         });
-
-        const result = await response.json();
-        
-        if (!result.data || !result.data.viewer || !result.data.viewer.zones.length) {
-            throw new Error("Gagal mengambil data pemakaian dari Cloudflare.");
-        }
-
-        const dailyData = result.data.viewer.zones[0].httpRequests1dGroups;
-        
-        if (dailyData.length === 0) {
-            await this.editMessageText(chatId, loadingMsg.message_id,
-                "📊 *Tidak ada data pemakaian untuk 10 hari terakhir.*",
-                { parse_mode: "Markdown" }
-            );
-            return new Response("OK", { status: 200 });
-        }
-
-        // Calculate totals
+        const dailyData = Array.from(dailyDataMap, ([date, sum]) => ({
+          dimensions: { date },
+          sum
+        })).sort((a, b) => new Date(b.dimensions.date) - new Date(a.dimensions.date));
         let totalBandwidth = 0;
         let totalRequests = 0;
-        
         dailyData.forEach((day) => {
-            totalBandwidth += day.sum.bytes;
-            totalRequests += day.sum.requests;
+          totalBandwidth += day.sum.bytes;
+          totalRequests += day.sum.requests;
         });
-
-        // Format main stats message
-        let usageText = `📊 *STATISTIK PENGGUNAAN SERVER*\n\n`;
+        let usageText = `📊 *STATISTIK PENGGUNAAN SERVER (SEMUA ZONA)*\n\n`;
         usageText += `⏰ **Periode:** 10 Hari Terakhir\n`;
-        usageText += `📅 **Dari:** ${tenDaysAgo} hingga ${new Date().toISOString().split('T')[0]}\n\n`;
-        
+        usageText += `📅 **Dari:** ${tenDaysAgo} hingga ${new Date().toISOString().split("T")[0]}\n\n`;
         usageText += `📈 **TOTAL KESELURUHAN:**\n`;
         usageText += `   ┣ 📊 Total Requests: ${totalRequests.toLocaleString()}\n`;
         usageText += `   ┗ 💾 Total Bandwidth: ${(totalBandwidth / 1024 ** 3).toFixed(2)} GB\n\n`;
-        
         usageText += `📋 **RINCIAN HARIAN:**\n`;
         usageText += "┌─────────────────────────────────┐\n";
-
         dailyData.forEach((day, index) => {
-            const tanggal = new Date(day.dimensions.date).toLocaleDateString('id-ID', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-            
-            const totalData = (day.sum.bytes / 1024 ** 3).toFixed(2);
-            const totalRequests = day.sum.requests.toLocaleString();
-            
-            usageText += `│ 📅 ${tanggal}\n`;
-            usageText += `│ ├─ 📨 Requests: ${totalRequests}\n`;
-            usageText += `│ └─ 💾 Bandwidth: ${totalData} GB\n`;
-            
-            if (index < dailyData.length - 1) {
-                usageText += "│ ───────────────────────────────\n";
-            }
+          const tanggal = new Date(day.dimensions.date).toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+          });
+          const totalData = (day.sum.bytes / 1024 ** 3).toFixed(2);
+          const totalRequests2 = day.sum.requests.toLocaleString();
+          usageText += `│ 📅 ${tanggal}\n`;
+          usageText += `│ ├─ 📨 Requests: ${totalRequests2}\n`;
+          usageText += `│ └─ 💾 Bandwidth: ${totalData} GB\n`;
+          if (index < dailyData.length - 1) {
+            usageText += "│ ───────────────────────────────\n";
+          }
         });
-        
         usageText += "└─────────────────────────────────┘\n\n";
-        
         usageText += `💡 *Info:* Data diperbarui secara real-time dari Cloudflare Analytics`;
-
-        // Delete loading message and send final stats
-        await this.deleteMessage(chatId, loadingMsg.message_id);
-        await this.sendMessage(chatId, usageText, { 
-            parse_mode: "Markdown", ...options
+        await this.sendMessage(chatId, usageText, {
+          parse_mode: "Markdown",
+          ...options
         });
-
-    } catch (error) {
+      } catch (error) {
         console.error("❌ Error fetching stats:", error);
         await this.sendMessage(
-            chatId,
-            `❌ *Gagal mengambil data statistik*\n\n` +
-            `_Error:_ \`${error.message}\`\n\n` +
-            `Pastikan API token dan Zone ID masih valid.`,
-            { parse_mode: "Markdown", ...options }
+          chatId,
+          `❌ *Gagal mengambil data statistik*\n\n_Error:_ \`${error.message}\`\n\nPastikan API token dan Zone ID masih valid.`,
+          { parse_mode: "Markdown", ...options }
         );
-    } finally {
+      } finally {
         if (messageIdToDelete) {
-            await this.deleteMessage(chatId, messageIdToDelete);
+          await this.deleteMessage(chatId, messageIdToDelete);
         }
+      }
+      return new Response("OK", { status: 200 });
     }
-    
-    return new Response("OK", { status: 200 });
-}
     
     if (text === "/start") {
         await this.sendPhoto(chatId, "https://github.com/jaka8m/BOT-CONVERTER/raw/main/start.png", {
@@ -2948,10 +2943,11 @@ function toBase64(str) {
   return btoa(String.fromCharCode(...new Uint8Array(data.buffer)));
 }
 __name(toBase64, "toBase64");
-function generateConfig(config, protocol, wildcardKey = null) {
+function generateConfig(config, protocol, wildcardKey = null, globalBot) {
   if (!config || !config.ip || !config.port || !config.isp) {
     return "❌ Data tidak valid!";
   }
+  const DEFAULT_HOST = globalBot.getRandomHost();
   const host = wildcardKey ? `${WILDCARD_MAP[wildcardKey]}.${DEFAULT_HOST}` : DEFAULT_HOST;
   const sni = host;
   const uuid = generateUUID2();
@@ -3018,9 +3014,10 @@ const TelegramProxyCekBot = class {
   static {
     __name(this, "TelegramProxyCekBot");
   }
-  constructor(token, apiUrl = "https://api.telegram.org") {
+  constructor(token, apiUrl = "https://api.telegram.org", ownerId, globalBot) {
     this.token = token;
     this.apiUrl = apiUrl;
+    this.globalBot = globalBot;
   }
   async sendRequest(method, body) {
     const url = `${this.apiUrl}/bot${this.token}/${method}`;
@@ -3121,7 +3118,7 @@ Please wait while it is being processed...
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
-        const configText = generateConfig(dataInfo, protocol, null);
+        const configText = generateConfig(dataInfo, protocol, null, this.globalBot);
         await this.editMessage(chatId, messageId, ` Config ${protocol} NO Wildcard:
 ${configText}
 `, {
@@ -3150,7 +3147,7 @@ Please wait while it is being processed...
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
-        const configText = generateConfig(dataInfo, protocol, wildcardKey);
+        const configText = generateConfig(dataInfo, protocol, wildcardKey, this.globalBot);
         await this.editMessage(chatId, messageId, ` Config ${protocol} Wildcard *${wildcardKey}*:
 ${configText}
 `, {
@@ -3383,24 +3380,25 @@ STATUS  : ${status}
       const path = encodeURIComponent(`/Free-VPN-CF-Geo-Project/${ip}=${port}`);
       const prov = encodeURIComponent(`${provider} ${getFlagEmoji2(countryCode)}`);
       const toBase642 = /* @__PURE__ */ __name((str) => btoa(unescape(encodeURIComponent(str))), "toBase64");
+      const randomHost = bot.globalBot.getRandomHost();
       let configText = "";
       if (type === "vless") {
         configText = `\`\`\`VLESS-TLS
-vless://${uuid}@${DEFAULT_HOST2}:443?encryption=none&security=tls&sni=${DEFAULT_HOST2}&fp=randomized&type=ws&host=${DEFAULT_HOST2}&path=${path}#${prov}
+vless://${uuid}@${randomHost}:443?encryption=none&security=tls&sni=${randomHost}&fp=randomized&type=ws&host=${randomHost}&path=${path}#${prov}
 \`\`\`\`\`\`VLESS-NTLS
-vless://${uuid}@${DEFAULT_HOST2}:80?path=${path}&security=none&encryption=none&host=${DEFAULT_HOST2}&fp=randomized&type=ws&sni=${DEFAULT_HOST2}#${prov}
+vless://${uuid}@${randomHost}:80?path=${path}&security=none&encryption=none&host=${randomHost}&fp=randomized&type=ws&sni=${randomHost}#${prov}
 \`\`\``;
       } else if (type === "trojan") {
         configText = `\`\`\`TROJAN-TLS
-trojan://${uuid}@${DEFAULT_HOST2}:443?encryption=none&security=tls&sni=${DEFAULT_HOST2}&fp=randomized&type=ws&host=${DEFAULT_HOST2}&path=${path}#${prov}
+trojan://${uuid}@${randomHost}:443?encryption=none&security=tls&sni=${randomHost}&fp=randomized&type=ws&host=${randomHost}&path=${path}#${prov}
 \`\`\`\`\`\`TROJAN-NTLS
-trojan://${uuid}@${DEFAULT_HOST2}:80?path=${path}&security=none&encryption=none&host=${DEFAULT_HOST2}&fp=randomized&type=ws&sni=${DEFAULT_HOST2}#${prov}
+trojan://${uuid}@${randomHost}:80?path=${path}&security=none&encryption=none&host=${randomHost}&fp=randomized&type=ws&sni=${randomHost}#${prov}
 \`\`\``;
       } else if (type === "ss") {
         configText = `\`\`\`SHADOWSOCKS-TLS
-ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:443?encryption=none&type=ws&host=${DEFAULT_HOST2}&path=${path}&security=tls&sni=${DEFAULT_HOST2}#${prov}
+ss://${toBase642(`none:${uuid}`)}@${randomHost}:443?encryption=none&type=ws&host=${randomHost}&path=${path}&security=tls&sni=${randomHost}#${prov}
 \`\`\`\`\`\`SHADOWSOCKS-NTLS
-ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:80?encryption=none&type=ws&host=${DEFAULT_HOST2}&path=${path}&security=none&sni=${DEFAULT_HOST2}#${prov}
+ss://${toBase642(`none:${uuid}`)}@${randomHost}:80?encryption=none&type=ws&host=${randomHost}&path=${path}&security=none&sni=${randomHost}#${prov}
 \`\`\``;
       }
       await bot.sendMessage(chatId, configText, { parse_mode: "Markdown", ...options });
@@ -3421,9 +3419,10 @@ class TelegramProxyBot {
     __name(this, "TelegramProxyBot");
   }
 
-  constructor(token, apiUrl = "https://api.telegram.org") {
+  constructor(token, apiUrl = "https://api.telegram.org", ownerId, globalBot) {
     this.token = token;
     this.apiUrl = apiUrl;
+    this.globalBot = globalBot;
   }
 
   async handleUpdate(update, ctx) {
@@ -3528,11 +3527,10 @@ class KonstantaGlobalbot {
     __name(this, "KonstantaGlobalbot");
   }
 
-  constructor({ apiKey, rootDomain, accountID, zoneID, apiEmail, serviceName }) {
+  constructor({ apiKey, zones, accountID, apiEmail, serviceName }) {
     this.apiKey = apiKey;
-    this.rootDomain = rootDomain;
+    this.zones = zones;
     this.accountID = accountID;
-    this.zoneID = zoneID;
     this.apiEmail = apiEmail;
     this.serviceName = serviceName;
     
@@ -3559,55 +3557,67 @@ class KonstantaGlobalbot {
     return domains.map((d) => d.hostname);
   }
 
-  async addSubdomain(subdomain) {
-    const domain = `${subdomain}.${this.rootDomain}`.toLowerCase();
-    
-    if (!domain.endsWith(this.rootDomain)) return 400;
-    
+  async addSubdomain(subdomainInput) {
+    const subdomain = subdomainInput.toLowerCase();
+    let targetZone = this.zones.find((z) => subdomain.endsWith(`.${z.rootDomain}`));
+    let fullDomain;
+    if (targetZone) {
+      fullDomain = subdomain;
+    } else {
+      targetZone = this.zones[0];
+      fullDomain = `${subdomain}.${targetZone.rootDomain}`;
+    }
     const registered = await this.getDomainList();
-    if (registered.includes(domain)) return 409;
-    
+    if (registered.includes(fullDomain))
+      return 409;
     try {
       const testRes = await fetch(`https://${subdomain}`);
-      if (testRes.status === 530) return 530;
+      if (testRes.status === 530)
+        return 530;
     } catch {
       return 400;
     }
-    
     const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountID}/workers/domains`;
     const body = {
       environment: "production",
-      hostname: domain,
+      hostname: fullDomain,
       service: this.serviceName,
-      zone_id: this.zoneID
+      zone_id: targetZone.zoneID
     };
-    
     const res = await fetch(url, {
       method: "PUT",
       headers: this.headers,
       body: JSON.stringify(body)
     });
-    
     return res.status;
   }
 
   async deleteSubdomain(subdomain) {
-    const domain = `${subdomain}.${this.rootDomain}`.toLowerCase();
+    const domain = subdomain.toLowerCase();
     const listUrl = `https://api.cloudflare.com/client/v4/accounts/${this.accountID}/workers/domains`;
-    
     const listRes = await fetch(listUrl, { headers: this.headers });
-    if (!listRes.ok) return listRes.status;
-    
+    if (!listRes.ok)
+      return listRes.status;
     const json = await listRes.json();
     const obj = json.result.find((d) => d.hostname === domain);
-    
-    if (!obj) return 404;
-    
+    if (!obj) {
+      for (const zone of this.zones) {
+        const fullDomain = `${domain}.${zone.rootDomain}`;
+        const objWithRoot = json.result.find((d) => d.hostname === fullDomain);
+        if (objWithRoot) {
+          const res = await fetch(`${listUrl}/${objWithRoot.id}`, {
+            method: "DELETE",
+            headers: this.headers
+          });
+          return res.status;
+        }
+      }
+      return 404;
+    }
     const res = await fetch(`${listUrl}/${obj.id}`, {
       method: "DELETE",
       headers: this.headers
     });
-    
     return res.status;
   }
 
@@ -3632,6 +3642,12 @@ class KonstantaGlobalbot {
 
   getAllRequests() {
     return globalThis.subdomainRequests.slice();
+  }
+
+  getRandomHost() {
+    const randomIndex = Math.floor(Math.random() * this.zones.length);
+    const rootDomain = this.zones[randomIndex].rootDomain;
+    return `${this.serviceName}.${rootDomain}`;
   }
 }
 
@@ -3707,18 +3723,19 @@ class TelegramWildcardBot {
         
         const results = [];
         for (const sd of subdomains) {
-          const cleanSd = sd.trim();
-          const full = `${cleanSd}.${this.globalBot.rootDomain}`;
+          const cleanSd = sd.trim().toLowerCase();
           let st = 500;
-          
+          let fullDomain = cleanSd;
+          const targetZone = this.globalBot.zones.find((z) => cleanSd.endsWith(`.${z.rootDomain}`));
+          if (!targetZone) {
+            fullDomain = `${cleanSd}.${this.globalBot.zones[0].rootDomain}`;
+          }
           try {
             st = await this.globalBot.addSubdomain(cleanSd);
-          } catch {}
-          
+          } catch {
+          }
           results.push(
-            st === 200 ? 
-            `${full} berhasil ditambahkan.` : 
-            `Gagal menambahkan domain ${full}, status: ${st}`
+            st === 200 ? `${fullDomain} berhasil ditambahkan.` : `Gagal menambahkan domain ${fullDomain}, status: ${st}`
           );
         }
         
@@ -3811,15 +3828,9 @@ class TelegramWildcardBot {
       const messageIdToEdit = loadingMessage.result.message_id;
 
       try {
-        const allDomains = await this.globalBot.getDomainList();
-        const rootDomain = this.globalBot.rootDomain;
-        const domains = allDomains.filter(d => {
-            const prefix = d.replace(`.${rootDomain}`, '');
-            return !prefix.includes('.');
-        });
-        
+        const domains = this.globalBot.zones.map((zone) => `${this.globalBot.serviceName}.${zone.rootDomain}`);
         if (!domains.length) {
-          await this.editMessage(chatId, messageIdToEdit, "Tidak ada domain utama yang terhubung dengan worker untuk diperiksa.", options);
+          await this.editMessage(chatId, messageIdToEdit, "Tidak ada domain root yang dikonfigurasi untuk diperiksa.", options);
           return new Response("OK", { status: 200 });
         }
 
@@ -4082,15 +4093,15 @@ Bot akan memilih IP secara acak dari negara tersebut dan mengirimkan config-nya.
         return new Response("OK", { status: 200 });
       }
       if (text.startsWith("rotate ")) {
-        await rotateconfig.call(this, chatId, text, options);
+        await rotateconfig.call(this, chatId, text, options, this.globalBot);
         return new Response("OK", { status: 200 });
       }
       if (text.startsWith("/randomconfig")) {
-  const loadingMsg = await this.sendMessageWithDelete(chatId, "  Membuat konfigurasi acak...", options);
-  try {
-    const configText = await randomconfig();
-    await this.sendMessage(chatId, configText, { parse_mode: "Markdown", ...options });
-  } catch (error) {
+        const loadingMsg = await this.sendMessageWithDelete(chatId, "  Membuat konfigurasi acak...", options);
+        try {
+          const configText = await randomconfig(this.globalBot);
+          await this.sendMessage(chatId, configText, { parse_mode: "Markdown", ...options });
+        } catch (error) {
     console.error("Error generating random config:", error);
     await this.sendMessage(chatId, `  Terjadi kesalahan:\n${error.message}`, options);
   }
@@ -4194,9 +4205,10 @@ const SublinkBuilderBot = class {
   static {
     __name(this, "SublinkBuilderBot");
   }
-  constructor(token, apiUrl = "https://api.telegram.org") {
+  constructor(token, apiUrl = "https://api.telegram.org", ownerId, globalBot) {
     this.token = token;
     this.apiUrl = apiUrl;
+    this.globalBot = globalBot;
   }
   async handleUpdate(update, ctx) {
     if (update.message && update.message.text) {
@@ -4325,16 +4337,14 @@ const SublinkBuilderBot = class {
         await this.editMessageText(chatId, messageId, "Sedang memproses permintaan Anda...", options);
         
         // Build URL berdasarkan pilihan country
+        const randomHost = this.globalBot.getRandomHost();
         let url;
-        if (state.country === 'all') {
-          // Untuk "All Countries", tidak sertakan parameter country sama sekali
-          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
-        } else if (state.country === 'random') {
-          // Untuk "Random", gunakan parameter country=random
-          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
+        if (state.country === "all") {
+          url = `https://${randomHost}/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
+        } else if (state.country === "random") {
+          url = `https://${randomHost}/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
         } else {
-          // Untuk country spesifik, gunakan parameter country dengan kode negara
-          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
+          url = `https://${randomHost}/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
         }
         
         console.log(`Mengakses URL: ${url}`); // Untuk debugging
@@ -4557,17 +4567,21 @@ const worker_default = {
 
       const apiKey = "28595cd826561d8014059ca54712d3ca3332c";
       const accountID = "716746bfb7638b3aaa909b55740fbc60";
-      const zoneID = "fe34f9ac955252fedff0a3907333b456";
       const apiEmail = "pihajamal@gmail.com";
       const serviceName = "joss";
-      const rootDomain = "krekkrek.web.id";
+      const zones = [
+        { rootDomain: "krekkrek.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
+        { rootDomain: "krukkruk.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
+        { rootDomain: "krikkrik.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
+        { rootDomain: "krokkrok.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
+        { rootDomain: "gpj2.dpdns.org", zoneID: "fe34f9ac955252fedff0a3907333b456" }
+      ];
       const globalBot = new KonstantaGlobalbot({
         apiKey,
         accountID,
-        zoneID,
+        zones,
         apiEmail,
-        serviceName,
-        rootDomain
+        serviceName
       });
       let bot;
       if (update.callback_query) {
@@ -4581,7 +4595,7 @@ const worker_default = {
         } else if (data.startsWith("page_") || data.startsWith("select_") || data.startsWith("config_")) {
           bot = new TelegramProxyBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (data.startsWith("sublink_")) {
-          bot = new SublinkBuilderBot(token, "https://api.telegram.org");
+          bot = new SublinkBuilderBot(token, "https://api.telegram.org", ownerId, globalBot);
         }
       } else if (update.message && update.message.text) {
         const commandParts = update.message.text.trim().split(" ");
@@ -4595,13 +4609,13 @@ const worker_default = {
         }
         const chatId = update.message.chat.id;
         if (sublinkState.has(chatId)) {
-          bot = new SublinkBuilderBot(token, "https://api.telegram.org");
+          bot = new SublinkBuilderBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/config") || text.startsWith("rotate ") || text.startsWith("/randomconfig") || text.startsWith("/listwildcard")) {
           bot = new TelegramBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/proxyip")) {
-          bot = new TelegramProxyBot(token, "https://api.telegram.org");
+          bot = new TelegramProxyBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/proxy") || text.startsWith("/menu") || text.startsWith("/findproxy") || text.startsWith("/donate") || text.startsWith("/stats") || text.startsWith("/start") || text.startsWith("/ping") || text.startsWith("/kuota")) {
-          bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env);
+          bot = new TelegramBotku(token, "https://api.telegram.org", ownerId, env, globalBot);
         } else if (text.match(/^(\d{1,3}(?:\.\d{1,3}){3}):?(\d{1,5})?$/) && !text.includes("://")) {
           bot = new TelegramProxyCekBot(token, "https://api.telegram.org", ownerId, globalBot);
         } else if (text.startsWith("/add") || text.startsWith("/del") || text.startsWith("/list") || text.startsWith("/approve ") || text.startsWith("/reject ") || text.startsWith("/req")) {
@@ -4609,7 +4623,7 @@ const worker_default = {
         } else if (text.startsWith("/broadcast") || text.startsWith("/userlist") || text.startsWith("/converter") || text.includes("://")) {
           bot = new Converterbot(token, "https://api.telegram.org", ownerId, env);
         } else if (text.startsWith("/sublink")) {
-          bot = new SublinkBuilderBot(token, "https://api.telegram.org");
+          bot = new SublinkBuilderBot(token, "https://api.telegram.org", ownerId, globalBot);
         }
       }
       if (bot) {
