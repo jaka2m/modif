@@ -1697,7 +1697,7 @@ function generateUUID() {
 __name(generateUUID, "generateUUID");
 async function randomconfig() {
   try {
-    const HOSTKU2 = "panas.dingin.dpdns.org";
+    const HOSTKU2 = "joss.krekkrek.web.id";
     const GITHUB_BASE_URL = "https://raw.githubusercontent.com/jaka2m/botak/main/cek/";
     const proxyResponse = await fetch(`${GITHUB_BASE_URL}proxyList.txt`);
     if (!proxyResponse.ok) {
@@ -1890,7 +1890,7 @@ async function rotateconfig(chatId, text, options) {
       return v.toString(16);
     }), "generateUUID");
     const toBase642 = /* @__PURE__ */ __name((str) => typeof btoa === "function" ? btoa(unescape(encodeURIComponent(str))) : Buffer.from(str, "utf-8").toString("base64"), "toBase64");
-    const HOSTKU2 = "panas.dingin.dpdns.org";
+    const HOSTKU2 = "joss.krekkrek.web.id";
     const path = `/Free-VPN-CF-Geo-Project/${ip}=${port}`;
     const encodedVlessLabelTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} TLS`);
     const encodedVlessLabelNTLS = encodeURIComponent(`ROTATE VLESS ${ipData.isp} ${ipData.country} NTLS`);
@@ -2752,7 +2752,7 @@ Ketik \`/menu\` untuk melihat semua perintah yang tersedia.
 - Pastikan format input sesuai untuk hasil terbaik
 
 🔗 *Tautan Terkait:*
-🌐 [WEB VPN TUNNEL](https://panas.dingin.dpdns.org)
+🌐 [WEB VPN TUNNEL](https://joss.krekkrek.web.id)
 📺 [CHANNEL VPS & Script](https://t.me/testikuy_mang)
 👥 [GRUP PHREAKER](https://t.me/+Q1ARd8ZsAuM2xB6-)
 ✨━━━━━━━━━━━━━━━━━✨
@@ -2885,7 +2885,7 @@ const WILDCARD_MAP = {
 const WILDCARD_OPTIONS = Object.entries(WILDCARD_MAP).map(
   ([value, text]) => ({ text, value })
 );
-const DEFAULT_HOST = "panas.dingin.dpdns.org";
+const DEFAULT_HOST = "joss.krekkrek.web.id";
 const API_URL = "https://geovpn.vercel.app/check?ip=";
 async function fetchIPData(ip, port) {
   try {
@@ -3200,7 +3200,7 @@ Pilih protokol:`;
 
 // src/proxyip/proxyip.js
 const APIKU = "https://geovpn.vercel.app/check?ip=";
-const DEFAULT_HOST2 = "panas.dingin.dpdns.org";
+const DEFAULT_HOST2 = "joss.krekkrek.web.id";
 const sentMessages = /* @__PURE__ */ new Map();
 const paginationState = /* @__PURE__ */ new Map();
 function generateUUID3() {
@@ -4035,7 +4035,7 @@ class TelegramWildcardBot {
 }
 
 // src/bot.js
-const HOSTKU = "panas.dingin.dpdns.org";
+const HOSTKU = "joss.krekkrek.web.id";
 const TelegramBot = class {
   static {
     __name(this, "TelegramBot");
@@ -4328,13 +4328,13 @@ const SublinkBuilderBot = class {
         let url;
         if (state.country === 'all') {
           // Untuk "All Countries", tidak sertakan parameter country sama sekali
-          url = `https://panas.dingin.dpdns.org/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
+          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
         } else if (state.country === 'random') {
           // Untuk "Random", gunakan parameter country=random
-          url = `https://panas.dingin.dpdns.org/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
+          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
         } else {
           // Untuk country spesifik, gunakan parameter country dengan kode negara
-          url = `https://panas.dingin.dpdns.org/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
+          url = `https://joss.krekkrek.web.id/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
         }
         
         console.log(`Mengakses URL: ${url}`); // Untuk debugging
