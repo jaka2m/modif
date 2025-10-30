@@ -1435,12 +1435,12 @@ export default {
   }
 }
 
-      const geovpn = url.hostname;
+      const rootDomain = env.ROOT_DOMAIN || url.hostname.replace(/^[^.]+\./, '');
       const type = url.searchParams.get('type') || 'mix';
       const tls = url.searchParams.get('tls') !== 'false';
       const wildcard = url.searchParams.get('wildcard') === 'true';
-      const bugs = url.searchParams.get('bug') || geovpn;
-      const geo81 = wildcard ? `${bugs}.${geovpn}` : geovpn;
+      const bugs = url.searchParams.get('bug') || rootDomain;
+      const geo81 = wildcard ? (bugs.endsWith(`.${rootDomain}`) ? bugs : `${bugs}.${rootDomain}`) : bugs;
       const country = url.searchParams.get('country');
       const limit = parseInt(url.searchParams.get('limit'), 10); // Ambil nilai limit
       let configs;
@@ -4280,7 +4280,8 @@ function buildCountryFlag() {
     };
 
     const url = new URL(request.url);
-    const hostName = url.hostname;
+    const rootDomain = env.ROOT_DOMAIN || url.hostname.replace(/^[^.]+\./, '');
+    const hostName = rootDomain;
     const page = parseInt(url.searchParams.get('page')) || 1;
     const searchQuery = url.searchParams.get('search') || '';
     const selectedWildcard = url.searchParams.get('wildcard') || '';
@@ -4324,7 +4325,9 @@ function buildCountryFlag() {
         const rowNumber = startIndex + index + 1;
         const uuid = generateUUIDv4();
         const wildcard = selectedWildcard || hostName;
-        const modifiedHostName = selectedWildcard ? `${selectedWildcard}.${hostName}` : hostName;
+        const modifiedHostName = selectedWildcard
+            ? (selectedWildcard.endsWith(`.${hostName}`) ? selectedWildcard : `${selectedWildcard}.${hostName}`)
+            : (searchQuery ? searchQuery : hostName);
         const url = new URL(request.url);
         const BASE_URL = `https://${url.hostname}`;
         const CHECK_API = `${BASE_URL}/geo-ip?ip=`;
