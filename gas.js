@@ -1088,7 +1088,7 @@ const Converterbot = class {
     this.env = env;
   }
 
-  async handleUpdate(update) {
+  async handleUpdate(update, ctx) {
     // Handle pagination callback
     if (update.callback_query && update.callback_query.data.startsWith("userlist_page_")) {
       const chatId = update.callback_query.message.chat.id;
@@ -2596,8 +2596,8 @@ _— Tim GEO BOT SERVER_
 }
 
     if (text === "/stats") {
-    const CLOUDFLARE_API_TOKEN = "4oG14lWqgbSZL66__GLozT2xLJi0b0US557EWSXy";
-    const CLOUDFLARE_ZONE_ID = "9c87f5bb8cd9e374b047a982f66ad945";
+    const CLOUDFLARE_API_TOKEN = "jjtpiyLT97DYmd3zVz8Q3vypTSVxDRrcVF7yTBl8";
+    const CLOUDFLARE_ZONE_ID = "fe34f9ac955252fedff0a3907333b456";
     
     const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
         const d = /* @__PURE__ */ new Date();
@@ -3043,7 +3043,7 @@ const TelegramProxyCekBot = class {
   async sendChatAction(chatId, action = "typing") {
     return this.sendRequest("sendChatAction", { chat_id: chatId, action });
   }
-  async handleUpdate(update) {
+  async handleUpdate(update, ctx) {
     if (!update.message && !update.callback_query) return new Response("OK", { status: 200 });
     if (update.message && update.message.text) {
       const chatId = update.message.chat.id;
@@ -3426,7 +3426,7 @@ class TelegramProxyBot {
     this.apiUrl = apiUrl;
   }
 
-  async handleUpdate(update) {
+  async handleUpdate(update, ctx) {
     if (update.message) {
       const msg = update.message;
       if (msg.text && msg.text.startsWith("/proxyip")) {
@@ -3440,6 +3440,22 @@ class TelegramProxyBot {
     }
 
     return new Response("OK", { status: 200 });
+  }
+
+  async editMessage(chatId, messageId, text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "Markdown",
+      ...options
+    };
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
   }
 
   async sendMessage(chatId, text, options = {}) {
@@ -3635,7 +3651,23 @@ class TelegramWildcardBot {
     this.handleUpdate = this.handleUpdate.bind(this);
   }
 
-  async handleUpdate(update) {
+  async editMessage(chatId, messageId, text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "Markdown",
+      ...options
+    };
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  }
+
+  async handleUpdate(update, ctx) {
     if (!update.message) return new Response("OK", { status: 200 });
     
     const chatId = update.message.chat.id;
@@ -3773,6 +3805,65 @@ class TelegramWildcardBot {
       return new Response("OK", { status: 200 });
     }
     
+    // Handle /listdom command
+    if (text.startsWith("/listdom")) {
+      const loadingMessage = await this.sendMessage(chatId, "🔍 *Memeriksa domain, mohon tunggu...*", { parse_mode: "Markdown", ...options });
+      const messageIdToEdit = loadingMessage.result.message_id;
+
+      try {
+        const allDomains = await this.globalBot.getDomainList();
+        const rootDomain = this.globalBot.rootDomain;
+        const domains = allDomains.filter(d => {
+            const prefix = d.replace(`.${rootDomain}`, '');
+            return !prefix.includes('.');
+        });
+        
+        if (!domains.length) {
+          await this.editMessage(chatId, messageIdToEdit, "Tidak ada domain utama yang terhubung dengan worker untuk diperiksa.", options);
+          return new Response("OK", { status: 200 });
+        }
+
+        const checkDomain = async (domain) => {
+          try {
+            const response = await fetch(`https://${domain}`, { method: 'HEAD', redirect: 'manual' });
+            if (response.status >= 200 && response.status < 300) {
+              return `✅ \`${domain}\` - Active`;
+            } else if (response.status >= 300 && response.status < 400) {
+              return `↪️ \`${domain}\` - Redirect`;
+            } else if (response.status === 1027) {
+              return `🔒 \`${domain}\` - Limit`;
+            } else if (response.status === 1101) {
+                return `❗️ \`${domain}\` - Error`;
+            } else {
+              return `⚠️ \`${domain}\` - Error ${response.status}`;
+            }
+          } catch (error) {
+            return `❌ \`${domain}\` - Dead/tidak valid`;
+          }
+        };
+
+        // Batch processing
+        const batchSize = 5;
+        const results = [];
+        for (let i = 0; i < domains.length; i += batchSize) {
+            const batch = domains.slice(i, i + batchSize);
+            const batchResults = await Promise.all(batch.map(checkDomain));
+            results.push(...batchResults);
+        }
+
+        const resultText = results.join("\n");
+        const message = `🔍 **Hasil Pengecekan Domain:**\n\n${resultText}\n\n**Keterangan:**\n✅ = Domain aktif\n↪️ = Redirect\n🔒 = Limit\n❗️ = Error\n⚠️ = Masalah Lain\n❌ = Dead/tidak valid`;
+
+        await this.editMessage(chatId, messageIdToEdit, message, { parse_mode: "Markdown", ...options });
+
+      } catch (error) {
+        console.error("Error in /listdom command:", error);
+        await this.editMessage(chatId, messageIdToEdit, "Terjadi kesalahan saat memeriksa domain.", options);
+      }
+      
+      return new Response("OK", { status: 200 });
+    }
+
     // Handle /list command
     if (text.startsWith("/list")) {
       let domains = [];
@@ -3955,7 +4046,7 @@ const TelegramBot = class {
     this.ownerId = ownerId;
     this.globalBot = globalBot;
   }
-  async handleUpdate(update) {
+  async handleUpdate(update, ctx) {
     if (!update.message && !update.callback_query) {
       return new Response("OK", { status: 200 });
     }
@@ -4107,7 +4198,7 @@ const SublinkBuilderBot = class {
     this.token = token;
     this.apiUrl = apiUrl;
   }
-  async handleUpdate(update) {
+  async handleUpdate(update, ctx) {
     if (update.message && update.message.text) {
       const chatId = update.message.chat.id;
       const text = update.message.text.trim();
@@ -4414,13 +4505,13 @@ const worker_default = {
     return false;
   },
 
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
     try {
       const update = await request.json();
-      const token = "8106502014:AAHlmMIMOPquDmpwbYccxIq7gsyp0fh6ptg";
+      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
       const ownerId = 1467883032;
       const groupId = "@auto_sc";
 
@@ -4464,12 +4555,12 @@ const worker_default = {
         }
       }
 
-      const apiKey = "2246a194882f882c6e2c76953c76bdb31a55c";
-      const accountID = "c845f3315dd8b7b3b831b5973e018e35";
-      const zoneID = "9c87f5bb8cd9e374b047a982f66ad945";
-      const apiEmail = "freecf2025@gmail.com";
-      const serviceName = "panas";
-      const rootDomain = "dingin.dpdns.org";
+      const apiKey = "28595cd826561d8014059ca54712d3ca3332c";
+      const accountID = "716746bfb7638b3aaa909b55740fbc60";
+      const zoneID = "fe34f9ac955252fedff0a3907333b456";
+      const apiEmail = "pihajamal@gmail.com";
+      const serviceName = "joss";
+      const rootDomain = "krekkrek.web.id";
       const globalBot = new KonstantaGlobalbot({
         apiKey,
         accountID,
@@ -4493,14 +4584,16 @@ const worker_default = {
           bot = new SublinkBuilderBot(token, "https://api.telegram.org");
         }
       } else if (update.message && update.message.text) {
-        // Membersihkan command dari mention bot (e.g., /start@namabot -> /start)
         const commandParts = update.message.text.trim().split(" ");
         commandParts[0] = commandParts[0].split("@")[0];
         update.message.text = commandParts.join(" ");
-
+        const text = update.message.text;
+        if (text.startsWith("/listdom")) {
+          const listdomBot = new TelegramWildcardBot(token, "https://api.telegram.org", ownerId, globalBot);
+          ctx.waitUntil(listdomBot.handleUpdate(update));
+          return new Response("OK", { status: 200 });
+        }
         const chatId = update.message.chat.id;
-        const text = update.message.text; // Sekarang `text` sudah bersih
-
         if (sublinkState.has(chatId)) {
           bot = new SublinkBuilderBot(token, "https://api.telegram.org");
         } else if (text.startsWith("/config") || text.startsWith("rotate ") || text.startsWith("/randomconfig") || text.startsWith("/listwildcard")) {
@@ -4520,7 +4613,7 @@ const worker_default = {
         }
       }
       if (bot) {
-        await bot.handleUpdate(update);
+        await bot.handleUpdate(update, ctx);
       }
       return new Response("OK", { status: 200 });
     } catch (error) {
