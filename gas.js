@@ -3,151 +3,131 @@ const __name = (target, value) => __defProp(target, "name", { value, configurabl
 
 // src/converter/linkParser.js
 function decodeBase64(str) {
-  // Alternatif 1: Menggunakan atob (browser API)
-  if (typeof atob === 'function') {
+  if (typeof atob === "function") {
     return atob(str);
   }
-  
-  // Alternatif 2: Implementasi manual base64 decode
-  const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  let result = '';
+  const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let result = "";
   let i = 0;
   let char1, char2, char3;
   let enc1, enc2, enc3, enc4;
-
-  // Remove all characters that are not A-Z, a-z, 0-9, +, /, or =
-  str = str.replace(/[^A-Za-z0-9+/=]/g, '');
-
+  str = str.replace(/[^A-Za-z0-9+/=]/g, "");
   while (i < str.length) {
     enc1 = base64Chars.indexOf(str.charAt(i++));
     enc2 = base64Chars.indexOf(str.charAt(i++));
     enc3 = base64Chars.indexOf(str.charAt(i++));
     enc4 = base64Chars.indexOf(str.charAt(i++));
-
-    char1 = (enc1 << 2) | (enc2 >> 4);
-    char2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-    char3 = ((enc3 & 3) << 6) | enc4;
-
+    char1 = enc1 << 2 | enc2 >> 4;
+    char2 = (enc2 & 15) << 4 | enc3 >> 2;
+    char3 = (enc3 & 3) << 6 | enc4;
     result += String.fromCharCode(char1);
     if (enc3 !== 64) result += String.fromCharCode(char2);
     if (enc4 !== 64) result += String.fromCharCode(char3);
   }
-
   return result;
 }
 __name(decodeBase64, "decodeBase64");
 function parseV2RayLink(link) {
   try {
-    if (link.startsWith('vmess://')) {
+    if (link.startsWith("vmess://")) {
       const base64 = link.substring(8);
       const decoded = decodeBase64(base64);
       let config;
-      
       try {
         config = JSON.parse(decoded);
       } catch (e) {
-        // Fallback untuk format non-standard
         const match = decoded.match(/{"v":"\d+".*}/);
         if (match) {
           config = JSON.parse(match[0]);
         } else {
-          throw new Error('Format VMess tidak valid');
+          throw new Error("Format VMess tidak valid");
         }
       }
-      
       return {
-        type: 'vmess',
+        type: "vmess",
         name: config.ps || `VMess-${config.add}:${config.port}`,
         server: config.add,
         port: config.port,
         uuid: config.id,
         alterId: config.aid || 0,
-        cipher: config.scy || 'auto',
-        tls: config.tls === 'tls',
+        cipher: config.scy || "auto",
+        tls: config.tls === "tls",
         skipCertVerify: false,
-        network: config.net || 'tcp',
-        wsPath: config.path || '',
+        network: config.net || "tcp",
+        wsPath: config.path || "",
         wsHost: config.host || config.add,
         sni: config.sni || config.host || config.add
       };
     }
-
-    if (link.startsWith('vless://')) {
+    if (link.startsWith("vless://")) {
       return parseVLESSLink(link);
     }
-
-    if (link.startsWith('trojan://')) {
+    if (link.startsWith("trojan://")) {
       return parseTrojanLink(link);
     }
-
-    if (link.startsWith('ss://')) {
+    if (link.startsWith("ss://")) {
       return parseShadowsocksLink(link);
     }
-
-    throw new Error('Unsupported link type');
-
+    throw new Error("Unsupported link type");
   } catch (error) {
     console.error(`Failed to parse link: ${link}`, error);
     throw new Error(`Gagal parsing link VMess: ${error.message}`);
   }
 }
-
+__name(parseV2RayLink, "parseV2RayLink");
 function parseVLESSLink(link) {
   const url = new URL(link);
   const params = new URLSearchParams(url.search);
-  
   return {
-    type: 'vless',
+    type: "vless",
     name: decodeURIComponent(url.hash.substring(1)),
     server: url.hostname,
     port: parseInt(url.port),
     uuid: url.username,
-    tls: params.get('security') === 'tls',
+    tls: params.get("security") === "tls",
     skipCertVerify: false,
-    network: params.get('type') || 'tcp',
-    wsPath: params.get('path') || '',
-    wsHost: params.get('host') || url.hostname,
-    sni: params.get('sni') || params.get('host') || url.hostname
+    network: params.get("type") || "tcp",
+    wsPath: params.get("path") || "",
+    wsHost: params.get("host") || url.hostname,
+    sni: params.get("sni") || params.get("host") || url.hostname
   };
 }
-
+__name(parseVLESSLink, "parseVLESSLink");
 function parseTrojanLink(link) {
   const url = new URL(link);
   const params = new URLSearchParams(url.search);
-  
   return {
-    type: 'trojan',
+    type: "trojan",
     name: decodeURIComponent(url.hash.substring(1)),
     server: url.hostname,
     port: parseInt(url.port),
     password: url.username,
-    tls: params.get('security') === 'tls',
+    tls: params.get("security") === "tls",
     skipCertVerify: false,
-    network: params.get('type') || 'tcp',
-    wsPath: params.get('path') || '',
-    wsHost: params.get('host') || url.hostname,
-    sni: params.get('sni') || params.get('host') || url.hostname
+    network: params.get("type") || "tcp",
+    wsPath: params.get("path") || "",
+    wsHost: params.get("host") || url.hostname,
+    sni: params.get("sni") || params.get("host") || url.hostname
   };
 }
-
+__name(parseTrojanLink, "parseTrojanLink");
 function parseShadowsocksLink(link) {
   const url = new URL(link);
   const params = new URLSearchParams(url.search);
-  
-  if (params.get('plugin') === 'v2ray-plugin' || params.get('type') === 'ws') {
+  if (params.get("plugin") === "v2ray-plugin" || params.get("type") === "ws") {
     return {
-      type: 'ss',
+      type: "ss",
       name: decodeURIComponent(url.hash.substring(1)),
       server: url.hostname,
       port: parseInt(url.port),
-      cipher: url.protocol.substring(3) || 'none',
+      cipher: url.protocol.substring(3) || "none",
       password: url.username,
-      tls: params.get('security') === 'tls',
+      tls: params.get("security") === "tls",
       skipCertVerify: false,
-      network: params.get('type') || 'tcp',
-      wsPath: params.get('path') || '',
-      wsHost: params.get('host') || url.hostname,
-      sni: params.get('sni') || params.get('host') || url.hostname
+      network: params.get("type") || "tcp",
+      wsPath: params.get("path") || "",
+      wsHost: params.get("host") || url.hostname,
+      sni: params.get("sni") || params.get("host") || url.hostname
     };
   }
   throw new Error("Shadowsocks link invalid");
@@ -181,14 +161,14 @@ dns:
     - https://dns.google/dns-query
 
 rule-providers:
-  ⛔ ADS:
+   ADS:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/malikshi/open_clash/main/rule_provider/rule_basicads.yaml"
     path: "./rule_provider/rule_basicads.yaml"
     interval: 86400
 
-  🔞 Porn:
+   Porn:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/malikshi/open_clash/main/rule_provider/rule_porn.yaml"
@@ -197,51 +177,64 @@ rule-providers:
 
 `;
   }
-  
-  config += `proxies:\n`;
-  
-  parsedLinks.forEach(link => {
-    config += `  - name: "${link.name}"\n`;
-    config += `    type: ${link.type}\n`;
-    config += `    server: ${link.server}\n`;
-    config += `    port: ${link.port}\n`;
-    
-    if (link.type === 'vmess') {
-      config += `    uuid: ${link.uuid}\n`;
-      config += `    alterId: ${link.alterId}\n`;
-      config += `    cipher: ${link.cipher}\n`;
-    } else if (link.type === 'vless') {
-      config += `    uuid: ${link.uuid}\n`;
-    } else if (link.type === 'trojan') {
-      config += `    password: ${link.password}\n`;
-    } else if (link.type === 'ss') {
-      config += `    cipher: ${link.cipher}\n`;
-      config += `    password: ${link.password}\n`;
+  config += `proxies:
+`;
+  parsedLinks.forEach((link) => {
+    config += `  - name: "${link.name}"
+`;
+    config += `    type: ${link.type}
+`;
+    config += `    server: ${link.server}
+`;
+    config += `    port: ${link.port}
+`;
+    if (link.type === "vmess") {
+      config += `    uuid: ${link.uuid}
+`;
+      config += `    alterId: ${link.alterId}
+`;
+      config += `    cipher: ${link.cipher}
+`;
+    } else if (link.type === "vless") {
+      config += `    uuid: ${link.uuid}
+`;
+    } else if (link.type === "trojan") {
+      config += `    password: ${link.password}
+`;
+    } else if (link.type === "ss") {
+      config += `    cipher: ${link.cipher}
+`;
+      config += `    password: ${link.password}
+`;
     }
-    
-    config += `    udp: true\n`;
-    
+    config += `    udp: true
+`;
     if (link.tls) {
-      config += `    tls: true\n`;
-      config += `    skip-cert-verify: ${link.skipCertVerify}\n`;
+      config += `    tls: true
+`;
+      config += `    skip-cert-verify: ${link.skipCertVerify}
+`;
       if (link.sni) {
-        config += `    servername: ${link.sni}\n`;
+        config += `    servername: ${link.sni}
+`;
       }
     }
-    
-    if (link.network === 'ws') {
-      config += `    network: ws\n`;
-      config += `    ws-opts:\n`;
-      config += `      path: "${link.wsPath}"\n`;
+    if (link.network === "ws") {
+      config += `    network: ws
+`;
+      config += `    ws-opts:
+`;
+      config += `      path: "${link.wsPath}"
+`;
       if (link.wsHost) {
-        config += `      headers:\n`;
-        config += `        Host: "${link.wsHost}"\n`;
+        config += `      headers:
+`;
+        config += `        Host: "${link.wsHost}"
+`;
       }
     }
-    
-    config += '\n';
+    config += "\n";
   });
-  
   if (isFullConfig) {
     config += `proxy-groups:
   - name: "INTERNET"
@@ -257,36 +250,36 @@ rule-providers:
     type: select
     proxies:
       - "DIRECT"
-      - "REJECT"\n`;
-    
-    parsedLinks.forEach(link => {
-      config += `      - "${link.name}"\n`;
+      - "REJECT"
+`;
+    parsedLinks.forEach((link) => {
+      config += `      - "${link.name}"
+`;
     });
-    
     config += `
   - name: "BEST-PING"
     type: url-test
     url: "http://www.gstatic.com/generate_204"
     interval: 300
     tolerance: 50
-    proxies:\n`;
-    
-    parsedLinks.forEach(link => {
-      config += `      - "${link.name}"\n`;
+    proxies:
+`;
+    parsedLinks.forEach((link) => {
+      config += `      - "${link.name}"
+`;
     });
-    
     config += `
   - name: "BALANCED"
     type: load-balance
     url: "http://www.gstatic.com/generate_204"
     interval: 300
     tolerance: 50
-    proxies:\n`;
-    
-    parsedLinks.forEach(link => {
-      config += `      - "${link.name}"\n`;
+    proxies:
+`;
+    parsedLinks.forEach((link) => {
+      config += `      - "${link.name}"
+`;
     });
-    
     config += `
   - name: "PORN"
     type: select
@@ -301,23 +294,21 @@ rule-providers:
       - "SELECTOR"
 
 rules:
-  - RULE-SET,⛔ ADS,ADS
-  - RULE-SET,🔞 Porn,PORN
+  - RULE-SET, ADS,ADS
+  - RULE-SET, Porn,PORN
   - IP-CIDR,192.168.0.0/16,DIRECT
   - IP-CIDR,10.0.0.0/8,DIRECT
   - IP-CIDR,172.16.0.0/12,DIRECT
   - IP-CIDR,127.0.0.0/8,DIRECT
-  - MATCH,INTERNET\n`;
+  - MATCH,INTERNET
+`;
   }
-  
   return config;
 }
-
-export function generateNekoboxConfig(links, isFullConfig = false) {
-  const parsedLinks = links.map(link => parseV2RayLink(link));
-  
-  let config = isFullConfig 
-    ? `{
+__name(generateClashConfig, "generateClashConfig");
+function generateNekoboxConfig(links, isFullConfig = false) {
+  const parsedLinks = links.map((link) => parseV2RayLink(link));
+  let config = isFullConfig ? `{
   "dns": {
     "final": "dns-final",
     "independent_cache": true,
@@ -409,15 +400,14 @@ export function generateNekoboxConfig(links, isFullConfig = false) {
       "tag": "Internet",
       "type": "selector",
       "outbounds": [
-        "Best Latency",\n`
-    : `{
-  "outbounds": [\n`;
-  
-  // Add proxy tags for selector
-  parsedLinks.forEach(link => {
-    config += `        "${link.name}",\n`;
+        "Best Latency",
+` : `{
+  "outbounds": [
+`;
+  parsedLinks.forEach((link) => {
+    config += `        "${link.name}",
+`;
   });
-  
   if (isFullConfig) {
     config += `        "direct"
       ]
@@ -425,154 +415,233 @@ export function generateNekoboxConfig(links, isFullConfig = false) {
     {
       "type": "urltest",
       "tag": "Best Latency",
-      "outbounds": [\n`;
-    
-    parsedLinks.forEach(link => {
-      config += `        "${link.name}",\n`;
+      "outbounds": [
+`;
+    parsedLinks.forEach((link) => {
+      config += `        "${link.name}",
+`;
     });
-    
     config += `        "direct"
       ],
       "url": "https://detectportal.firefox.com/success.txt",
       "interval": "1m0s"
-    },\n`;
+    },
+`;
   }
-  
-  // Add proxy configurations
   parsedLinks.forEach((link, index) => {
-    if (index > 0) config += ',\n';
-    
-    config += `    {\n`;
-    config += `      "tag": "${link.name}",\n`;
-    
-    if (link.type === 'vmess') {
-      config += `      "type": "vmess",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "uuid": "${link.uuid}",\n`;
-      config += `      "alter_id": ${link.alterId || 0},\n`;
-      config += `      "security": "${link.cipher || "auto"}",\n`;
-      config += `      "packet_encoding": "xudp",\n`;
-      config += `      "domain_strategy": "ipv4_only",\n`;
-      
+    if (index > 0) config += ",\n";
+    config += `    {
+`;
+    config += `      "tag": "${link.name}",
+`;
+    if (link.type === "vmess") {
+      config += `      "type": "vmess",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "uuid": "${link.uuid}",
+`;
+      config += `      "alter_id": ${link.alterId || 0},
+`;
+      config += `      "security": "${link.cipher || "auto"}",
+`;
+      config += `      "packet_encoding": "xudp",
+`;
+      config += `      "domain_strategy": "ipv4_only",
+`;
       if (link.tls) {
-        config += `      "tls": {\n`;
-        config += `        "enabled": true,\n`;
-        config += `        "insecure": ${link.skipCertVerify},\n`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
-        config += `        "utls": {\n`;
-        config += `          "enabled": true,\n`;
-        config += `          "fingerprint": "randomized"\n`;
-        config += `        }\n`;
-        config += `      },\n`;
+        config += `      "tls": {
+`;
+        config += `        "enabled": true,
+`;
+        config += `        "insecure": ${link.skipCertVerify},
+`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
+`;
+        config += `        "utls": {
+`;
+        config += `          "enabled": true,
+`;
+        config += `          "fingerprint": "randomized"
+`;
+        config += `        }
+`;
+        config += `      },
+`;
       }
-      
-      if (link.network === 'ws') {
-        config += `      "transport": {\n`;
-        config += `        "type": "ws",\n`;
-        config += `        "path": "${link.wsPath}",\n`;
-        config += `        "headers": {\n`;
-        config += `          "Host": "${link.wsHost || link.server}"\n`;
-        config += `        },\n`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
-        config += `      },\n`;
+      if (link.network === "ws") {
+        config += `      "transport": {
+`;
+        config += `        "type": "ws",
+`;
+        config += `        "path": "${link.wsPath}",
+`;
+        config += `        "headers": {
+`;
+        config += `          "Host": "${link.wsHost || link.server}"
+`;
+        config += `        },
+`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
+`;
+        config += `      },
+`;
       }
-      
-      config += `      "multiplex": {\n`;
-      config += `        "enabled": false,\n`;
-      config += `        "protocol": "smux",\n`;
-      config += `        "max_streams": 32\n`;
-      config += `      }\n`;
-    } 
-    else if (link.type === 'vless') {
-      config += `      "type": "vless",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "uuid": "${link.uuid}",\n`;
-      config += `      "flow": "",\n`;
-      config += `      "packet_encoding": "xudp",\n`;
-      config += `      "domain_strategy": "ipv4_only",\n`;
-      
+      config += `      "multiplex": {
+`;
+      config += `        "enabled": false,
+`;
+      config += `        "protocol": "smux",
+`;
+      config += `        "max_streams": 32
+`;
+      config += `      }
+`;
+    } else if (link.type === "vless") {
+      config += `      "type": "vless",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "uuid": "${link.uuid}",
+`;
+      config += `      "flow": "",
+`;
+      config += `      "packet_encoding": "xudp",
+`;
+      config += `      "domain_strategy": "ipv4_only",
+`;
       if (link.tls) {
-        config += `      "tls": {\n`;
-        config += `        "enabled": true,\n`;
-        config += `        "insecure": ${link.skipCertVerify},\n`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
-        config += `        "utls": {\n`;
-        config += `          "enabled": true,\n`;
-        config += `          "fingerprint": "randomized"\n`;
-        config += `        }\n`;
-        config += `      },\n`;
+        config += `      "tls": {
+`;
+        config += `        "enabled": true,
+`;
+        config += `        "insecure": ${link.skipCertVerify},
+`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
+`;
+        config += `        "utls": {
+`;
+        config += `          "enabled": true,
+`;
+        config += `          "fingerprint": "randomized"
+`;
+        config += `        }
+`;
+        config += `      },
+`;
       }
-      
-      if (link.network === 'ws') {
-        config += `      "transport": {\n`;
-        config += `        "type": "ws",\n`;
-        config += `        "path": "${link.wsPath}",\n`;
-        config += `        "headers": {\n`;
-        config += `          "Host": "${link.wsHost || link.server}"\n`;
-        config += `        },\n`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
-        config += `      },\n`;
+      if (link.network === "ws") {
+        config += `      "transport": {
+`;
+        config += `        "type": "ws",
+`;
+        config += `        "path": "${link.wsPath}",
+`;
+        config += `        "headers": {
+`;
+        config += `          "Host": "${link.wsHost || link.server}"
+`;
+        config += `        },
+`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
+`;
+        config += `      },
+`;
       }
-      
-      config += `      "multiplex": {\n`;
-      config += `        "enabled": false,\n`;
-      config += `        "protocol": "smux",\n`;
-      config += `        "max_streams": 32\n`;
-      config += `      }\n`;
-    }
-    else if (link.type === 'trojan') {
-      config += `      "type": "trojan",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "password": "${link.password}",\n`;
-      config += `      "domain_strategy": "ipv4_only",\n`;
-      
+      config += `      "multiplex": {
+`;
+      config += `        "enabled": false,
+`;
+      config += `        "protocol": "smux",
+`;
+      config += `        "max_streams": 32
+`;
+      config += `      }
+`;
+    } else if (link.type === "trojan") {
+      config += `      "type": "trojan",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "password": "${link.password}",
+`;
+      config += `      "domain_strategy": "ipv4_only",
+`;
       if (link.tls) {
-        config += `      "tls": {\n`;
-        config += `        "enabled": true,\n`;
-        config += `        "insecure": ${link.skipCertVerify},\n`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
-        config += `        "utls": {\n`;
-        config += `          "enabled": true,\n`;
-        config += `          "fingerprint": "randomized"\n`;
-        config += `        }\n`;
-        config += `      },\n`;
+        config += `      "tls": {
+`;
+        config += `        "enabled": true,
+`;
+        config += `        "insecure": ${link.skipCertVerify},
+`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
+`;
+        config += `        "utls": {
+`;
+        config += `          "enabled": true,
+`;
+        config += `          "fingerprint": "randomized"
+`;
+        config += `        }
+`;
+        config += `      },
+`;
       }
-      
-      if (link.network === 'ws') {
-        config += `      "transport": {\n`;
-        config += `        "type": "ws",\n`;
-        config += `        "path": "${link.wsPath}",\n`;
-        config += `        "headers": {\n`;
-        config += `          "Host": "${link.wsHost || link.server}"\n`;
-        config += `        },\n`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
-        config += `      },\n`;
+      if (link.network === "ws") {
+        config += `      "transport": {
+`;
+        config += `        "type": "ws",
+`;
+        config += `        "path": "${link.wsPath}",
+`;
+        config += `        "headers": {
+`;
+        config += `          "Host": "${link.wsHost || link.server}"
+`;
+        config += `        },
+`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
+`;
+        config += `      },
+`;
       }
-      
-      config += `      "multiplex": {\n`;
-      config += `        "enabled": false,\n`;
-      config += `        "protocol": "smux",\n`;
-      config += `        "max_streams": 32\n`;
-      config += `      }\n`;
+      config += `      "multiplex": {
+`;
+      config += `        "enabled": false,
+`;
+      config += `        "protocol": "smux",
+`;
+      config += `        "max_streams": 32
+`;
+      config += `      }
+`;
+    } else if (link.type === "ss") {
+      config += `      "type": "shadowsocks",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "method": "${link.cipher || "none"}",
+`;
+      config += `      "password": "${link.password}",
+`;
+      config += `      "plugin": "v2ray-plugin",
+`;
+      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"
+`;
     }
-    else if (link.type === 'ss') {
-      config += `      "type": "shadowsocks",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "method": "${link.cipher || "none"}",\n`;
-      config += `      "password": "${link.password}",\n`;
-      config += `      "plugin": "v2ray-plugin",\n`;
-      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"\n`;
-    }
-    
     config += `    }`;
   });
-  
   if (isFullConfig) {
-    config += `,\n    {
+    config += `,
+    {
       "tag": "direct",
       "type": "direct"
     },
@@ -629,18 +698,16 @@ export function generateNekoboxConfig(links, isFullConfig = false) {
   }
 }`;
   } else {
-    config += `\n  ]
+    config += `
+  ]
 }`;
   }
-  
   return config;
 }
-
-export function generateSingboxConfig(links, isFullConfig = false) {
-  const parsedLinks = links.map(link => parseV2RayLink(link));
-  
-  let config = isFullConfig 
-    ? `{
+__name(generateNekoboxConfig, "generateNekoboxConfig");
+function generateSingboxConfig(links, isFullConfig = false) {
+  const parsedLinks = links.map((link) => parseV2RayLink(link));
+  let config = isFullConfig ? `{
   "log": {
     "level": "info"
   },
@@ -701,15 +768,14 @@ export function generateSingboxConfig(links, isFullConfig = false) {
       "tag": "Internet",
       "type": "selector",
       "outbounds": [
-        "Best Latency",\n`
-    : `{
-  "outbounds": [\n`;
-  
-  // Add proxy tags for selector
-  parsedLinks.forEach(link => {
-    config += `        "${link.name}",\n`;
+        "Best Latency",
+` : `{
+  "outbounds": [
+`;
+  parsedLinks.forEach((link) => {
+    config += `        "${link.name}",
+`;
   });
-  
   if (isFullConfig) {
     config += `        "direct"
       ]
@@ -717,153 +783,231 @@ export function generateSingboxConfig(links, isFullConfig = false) {
     {
       "type": "urltest",
       "tag": "Best Latency",
-      "outbounds": [\n`;
-    
-    parsedLinks.forEach(link => {
-      config += `        "${link.name}",\n`;
+      "outbounds": [
+`;
+    parsedLinks.forEach((link) => {
+      config += `        "${link.name}",
+`;
     });
-    
     config += `        "direct"
       ],
       "url": "https://www.google.com",
       "interval": "10s"
-    },\n`;
+    },
+`;
   }
-  
-  // Add proxy configurations
   parsedLinks.forEach((link, index) => {
-    if (index > 0) config += ',\n';
-    
-    config += `    {\n`;
-    config += `      "tag": "${link.name}",\n`;
-    
-    if (link.type === 'vmess') {
-      config += `      "type": "vmess",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "uuid": "${link.uuid}",\n`;
-      config += `      "alter_id": ${link.alterId || 0},\n`;
-      config += `      "security": "${link.cipher || "zero"}",\n`;
-      config += `      "packet_encoding": "xudp",\n`;
-      config += `      "domain_strategy": "ipv4_only",\n`;
-      
+    if (index > 0) config += ",\n";
+    config += `    {
+`;
+    config += `      "tag": "${link.name}",
+`;
+    if (link.type === "vmess") {
+      config += `      "type": "vmess",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "uuid": "${link.uuid}",
+`;
+      config += `      "alter_id": ${link.alterId || 0},
+`;
+      config += `      "security": "${link.cipher || "zero"}",
+`;
+      config += `      "packet_encoding": "xudp",
+`;
+      config += `      "domain_strategy": "ipv4_only",
+`;
       if (link.tls) {
-        config += `      "tls": {\n`;
-        config += `        "enabled": true,\n`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
-        config += `        "insecure": ${link.skipCertVerify},\n`;
-        config += `        "utls": {\n`;
-        config += `          "enabled": true,\n`;
-        config += `          "fingerprint": "randomized"\n`;
-        config += `        }\n`;
-        config += `      },\n`;
+        config += `      "tls": {
+`;
+        config += `        "enabled": true,
+`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
+`;
+        config += `        "insecure": ${link.skipCertVerify},
+`;
+        config += `        "utls": {
+`;
+        config += `          "enabled": true,
+`;
+        config += `          "fingerprint": "randomized"
+`;
+        config += `        }
+`;
+        config += `      },
+`;
       }
-      
-      if (link.network === 'ws') {
-        config += `      "transport": {\n`;
-        config += `        "type": "ws",\n`;
-        config += `        "path": "${link.wsPath}",\n`;
-        config += `        "headers": {\n`;
-        config += `          "Host": "${link.wsHost || link.server}"\n`;
-        config += `        },\n`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
-        config += `      },\n`;
+      if (link.network === "ws") {
+        config += `      "transport": {
+`;
+        config += `        "type": "ws",
+`;
+        config += `        "path": "${link.wsPath}",
+`;
+        config += `        "headers": {
+`;
+        config += `          "Host": "${link.wsHost || link.server}"
+`;
+        config += `        },
+`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
+`;
+        config += `      },
+`;
       }
-      
-      config += `      "multiplex": {\n`;
-      config += `        "enabled": false,\n`;
-      config += `        "protocol": "smux",\n`;
-      config += `        "max_streams": 32\n`;
-      config += `      }\n`;
-    } 
-    else if (link.type === 'vless') {
-      config += `      "type": "vless",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "uuid": "${link.uuid}",\n`;
-      config += `      "packet_encoding": "xudp",\n`;
-      config += `      "domain_strategy": "ipv4_only",\n`;
-      
+      config += `      "multiplex": {
+`;
+      config += `        "enabled": false,
+`;
+      config += `        "protocol": "smux",
+`;
+      config += `        "max_streams": 32
+`;
+      config += `      }
+`;
+    } else if (link.type === "vless") {
+      config += `      "type": "vless",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "uuid": "${link.uuid}",
+`;
+      config += `      "packet_encoding": "xudp",
+`;
+      config += `      "domain_strategy": "ipv4_only",
+`;
       if (link.tls) {
-        config += `      "tls": {\n`;
-        config += `        "enabled": true,\n`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
-        config += `        "insecure": ${link.skipCertVerify},\n`;
-        config += `        "utls": {\n`;
-        config += `          "enabled": true,\n`;
-        config += `          "fingerprint": "randomized"\n`;
-        config += `        }\n`;
-        config += `      },\n`;
+        config += `      "tls": {
+`;
+        config += `        "enabled": true,
+`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
+`;
+        config += `        "insecure": ${link.skipCertVerify},
+`;
+        config += `        "utls": {
+`;
+        config += `          "enabled": true,
+`;
+        config += `          "fingerprint": "randomized"
+`;
+        config += `        }
+`;
+        config += `      },
+`;
       }
-      
-      if (link.network === 'ws') {
-        config += `      "transport": {\n`;
-        config += `        "type": "ws",\n`;
-        config += `        "path": "${link.wsPath}",\n`;
-        config += `        "headers": {\n`;
-        config += `          "Host": "${link.wsHost || link.server}"\n`;
-        config += `        },\n`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
-        config += `      },\n`;
+      if (link.network === "ws") {
+        config += `      "transport": {
+`;
+        config += `        "type": "ws",
+`;
+        config += `        "path": "${link.wsPath}",
+`;
+        config += `        "headers": {
+`;
+        config += `          "Host": "${link.wsHost || link.server}"
+`;
+        config += `        },
+`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
+`;
+        config += `      },
+`;
       }
-      
-      config += `      "multiplex": {\n`;
-      config += `        "enabled": false,\n`;
-      config += `        "protocol": "smux",\n`;
-      config += `        "max_streams": 32\n`;
-      config += `      }\n`;
-    }
-    else if (link.type === 'trojan') {
-      config += `      "type": "trojan",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "password": "${link.password}",\n`;
-      config += `      "domain_strategy": "ipv4_only",\n`;
-      
+      config += `      "multiplex": {
+`;
+      config += `        "enabled": false,
+`;
+      config += `        "protocol": "smux",
+`;
+      config += `        "max_streams": 32
+`;
+      config += `      }
+`;
+    } else if (link.type === "trojan") {
+      config += `      "type": "trojan",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "password": "${link.password}",
+`;
+      config += `      "domain_strategy": "ipv4_only",
+`;
       if (link.tls) {
-        config += `      "tls": {\n`;
-        config += `        "enabled": true,\n`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
-        config += `        "insecure": ${link.skipCertVerify},\n`;
-        config += `        "utls": {\n`;
-        config += `          "enabled": true,\n`;
-        config += `          "fingerprint": "randomized"\n`;
-        config += `        }\n`;
-        config += `      },\n`;
+        config += `      "tls": {
+`;
+        config += `        "enabled": true,
+`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
+`;
+        config += `        "insecure": ${link.skipCertVerify},
+`;
+        config += `        "utls": {
+`;
+        config += `          "enabled": true,
+`;
+        config += `          "fingerprint": "randomized"
+`;
+        config += `        }
+`;
+        config += `      },
+`;
       }
-      
-      if (link.network === 'ws') {
-        config += `      "transport": {\n`;
-        config += `        "type": "ws",\n`;
-        config += `        "path": "${link.wsPath}",\n`;
-        config += `        "headers": {\n`;
-        config += `          "Host": "${link.wsHost || link.server}"\n`;
-        config += `        },\n`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
-        config += `      },\n`;
+      if (link.network === "ws") {
+        config += `      "transport": {
+`;
+        config += `        "type": "ws",
+`;
+        config += `        "path": "${link.wsPath}",
+`;
+        config += `        "headers": {
+`;
+        config += `          "Host": "${link.wsHost || link.server}"
+`;
+        config += `        },
+`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
+`;
+        config += `      },
+`;
       }
-      
-      config += `      "multiplex": {\n`;
-      config += `        "enabled": false,\n`;
-      config += `        "protocol": "smux",\n`;
-      config += `        "max_streams": 32\n`;
-      config += `      }\n`;
+      config += `      "multiplex": {
+`;
+      config += `        "enabled": false,
+`;
+      config += `        "protocol": "smux",
+`;
+      config += `        "max_streams": 32
+`;
+      config += `      }
+`;
+    } else if (link.type === "ss") {
+      config += `      "type": "shadowsocks",
+`;
+      config += `      "server": "${link.server}",
+`;
+      config += `      "server_port": ${link.port},
+`;
+      config += `      "method": "${link.cipher || "none"}",
+`;
+      config += `      "password": "${link.password}",
+`;
+      config += `      "plugin": "v2ray-plugin",
+`;
+      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"
+`;
     }
-    else if (link.type === 'ss') {
-      config += `      "type": "shadowsocks",\n`;
-      config += `      "server": "${link.server}",\n`;
-      config += `      "server_port": ${link.port},\n`;
-      config += `      "method": "${link.cipher || "none"}",\n`;
-      config += `      "password": "${link.password}",\n`;
-      config += `      "plugin": "v2ray-plugin",\n`;
-      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"\n`;
-    }
-    
     config += `    }`;
   });
-  
   if (isFullConfig) {
-    config += `,\n    {
+    config += `,
+    {
       "type": "direct",
       "tag": "direct"
     },
@@ -924,10 +1068,10 @@ export function generateSingboxConfig(links, isFullConfig = false) {
   }
 }`;
   } else {
-    config += `\n  ]
+    config += `
+  ]
 }`;
   }
-  
   return config;
 }
 __name(generateSingboxConfig, "generateSingboxConfig");
@@ -2453,7 +2597,7 @@ _— Tim GEO BOT SERVER_
 }
 
     if (text === "/stats") {
-      const CLOUDFLARE_API_TOKEN = "CkIMfYiw6MrzYSGNU8G8IxIEIkfF2zYKzLPNJ-sw";
+      const CLOUDFLARE_API_TOKEN = "jjtpiyLT97DYmd3zVz8Q3vypTSVxDRrcVF7yTBl8";
       const getTenDaysAgoDate = /* @__PURE__ */ __name(() => {
         const d = new Date();
         d.setDate(d.getDate() - 10);
@@ -3692,22 +3836,17 @@ class TelegramWildcardBot {
 
         const checkDomain = async (domain) => {
           try {
-            const headResponse = await fetch(`https://${domain}`, { method: 'HEAD', redirect: 'manual' });
-            if (headResponse.status >= 200 && headResponse.status < 300) {
-              const getResponse = await fetch(`https://${domain}`);
-              const body = await getResponse.text();
-              if (body.includes("<title>Worker Vless Vmess Trojan & Shadowsocks</title>")) {
-                return `❌ \`${domain}\` - Dead/tidak valid`;
-              }
+            const response = await fetch(`https://${domain}`, { method: 'HEAD', redirect: 'manual' });
+            if (response.status >= 200 && response.status < 300) {
               return `✅ \`${domain}\` - Active`;
-            } else if (headResponse.status >= 300 && headResponse.status < 400) {
+            } else if (response.status >= 300 && response.status < 400) {
               return `↪️ \`${domain}\` - Redirect`;
-            } else if (headResponse.status === 1027) {
+            } else if (response.status === 1027) {
               return `🔒 \`${domain}\` - Limit`;
-            } else if (headResponse.status === 1101) {
+            } else if (response.status === 1101) {
                 return `❗️ \`${domain}\` - Error`;
             } else {
-              return `⚠️ \`${domain}\` - Error ${headResponse.status}`;
+              return `⚠️ \`${domain}\` - Error ${response.status}`;
             }
           } catch (error) {
             return `❌ \`${domain}\` - Dead/tidak valid`;
@@ -4382,7 +4521,7 @@ const worker_default = {
     }
     try {
       const update = await request.json();
-      const token = "8106502014:AAGWAQO7sAnDcqohXmFy5Ik5_rgceKWBv6g";
+      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
       const ownerId = 1467883032;
       const groupId = "@auto_sc";
 
@@ -4426,12 +4565,11 @@ const worker_default = {
         }
       }
 
-      const apiKey = "7c8bd61e637e39c78b11e31f43053f5b5a555";
-      const accountID = "893cc18314d9eb4418535da13969c14a";
-      const apiEmail = "andestpao83@gmail.com";
+      const apiKey = "28595cd826561d8014059ca54712d3ca3332c";
+      const accountID = "716746bfb7638b3aaa909b55740fbc60";
+      const apiEmail = "pihajamal@gmail.com";
       const serviceName = "joss";
       const zones = [
-        { rootDomain: "checker-ip.web.id", zoneID: "929ebaf98fe21fc3f53bee2a53900ebe" },
         { rootDomain: "krekkrek.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
         { rootDomain: "krukkruk.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
         { rootDomain: "krikkrik.web.id", zoneID: "fe34f9ac955252fedff0a3907333b456" },
