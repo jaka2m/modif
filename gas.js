@@ -1,146 +1,13 @@
 const __defProp = Object.defineProperty;
 const __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// src/converter/linkParser.js
-function decodeBase64(str) {
-  if (typeof atob === "function") {
-    return atob(str);
-  }
-  const base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  let result = "";
-  let i = 0;
-  let char1, char2, char3;
-  let enc1, enc2, enc3, enc4;
-  str = str.replace(/[^A-Za-z0-9+/=]/g, "");
-  while (i < str.length) {
-    enc1 = base64Chars.indexOf(str.charAt(i++));
-    enc2 = base64Chars.indexOf(str.charAt(i++));
-    enc3 = base64Chars.indexOf(str.charAt(i++));
-    enc4 = base64Chars.indexOf(str.charAt(i++));
-    char1 = enc1 << 2 | enc2 >> 4;
-    char2 = (enc2 & 15) << 4 | enc3 >> 2;
-    char3 = (enc3 & 3) << 6 | enc4;
-    result += String.fromCharCode(char1);
-    if (enc3 !== 64) result += String.fromCharCode(char2);
-    if (enc4 !== 64) result += String.fromCharCode(char3);
-  }
-  return result;
-}
-__name(decodeBase64, "decodeBase64");
-function parseV2RayLink(link) {
-  try {
-    if (link.startsWith("vmess://")) {
-      const base64 = link.substring(8);
-      const decoded = decodeBase64(base64);
-      let config;
-      try {
-        config = JSON.parse(decoded);
-      } catch (e) {
-        const match = decoded.match(/{"v":"\d+".*}/);
-        if (match) {
-          config = JSON.parse(match[0]);
-        } else {
-          throw new Error("Format VMess tidak valid");
-        }
-      }
-      return {
-        type: "vmess",
-        name: config.ps || `VMess-${config.add}:${config.port}`,
-        server: config.add,
-        port: config.port,
-        uuid: config.id,
-        alterId: config.aid || 0,
-        cipher: config.scy || "auto",
-        tls: config.tls === "tls",
-        skipCertVerify: false,
-        network: config.net || "tcp",
-        wsPath: config.path || "",
-        wsHost: config.host || config.add,
-        sni: config.sni || config.host || config.add
-      };
-    }
-    if (link.startsWith("vless://")) {
-      return parseVLESSLink(link);
-    }
-    if (link.startsWith("trojan://")) {
-      return parseTrojanLink(link);
-    }
-    if (link.startsWith("ss://")) {
-      return parseShadowsocksLink(link);
-    }
-    throw new Error("Unsupported link type");
-  } catch (error) {
-    console.error(`Failed to parse link: ${link}`, error);
-    throw new Error(`Gagal parsing link VMess: ${error.message}`);
-  }
-}
-__name(parseV2RayLink, "parseV2RayLink");
-function parseVLESSLink(link) {
-  const url = new URL(link);
-  const params = new URLSearchParams(url.search);
-  return {
-    type: "vless",
-    name: decodeURIComponent(url.hash.substring(1)),
-    server: url.hostname,
-    port: parseInt(url.port),
-    uuid: url.username,
-    tls: params.get("security") === "tls",
-    skipCertVerify: false,
-    network: params.get("type") || "tcp",
-    wsPath: params.get("path") || "",
-    wsHost: params.get("host") || url.hostname,
-    sni: params.get("sni") || params.get("host") || url.hostname
-  };
-}
-__name(parseVLESSLink, "parseVLESSLink");
-function parseTrojanLink(link) {
-  const url = new URL(link);
-  const params = new URLSearchParams(url.search);
-  return {
-    type: "trojan",
-    name: decodeURIComponent(url.hash.substring(1)),
-    server: url.hostname,
-    port: parseInt(url.port),
-    password: url.username,
-    tls: params.get("security") === "tls",
-    skipCertVerify: false,
-    network: params.get("type") || "tcp",
-    wsPath: params.get("path") || "",
-    wsHost: params.get("host") || url.hostname,
-    sni: params.get("sni") || params.get("host") || url.hostname
-  };
-}
-__name(parseTrojanLink, "parseTrojanLink");
-function parseShadowsocksLink(link) {
-  const url = new URL(link);
-  const params = new URLSearchParams(url.search);
-  if (params.get("plugin") === "v2ray-plugin" || params.get("type") === "ws") {
-    return {
-      type: "ss",
-      name: decodeURIComponent(url.hash.substring(1)),
-      server: url.hostname,
-      port: parseInt(url.port),
-      cipher: url.protocol.substring(3) || "none",
-      password: url.username,
-      tls: params.get("security") === "tls",
-      skipCertVerify: false,
-      network: params.get("type") || "tcp",
-      wsPath: params.get("path") || "",
-      wsHost: params.get("host") || url.hostname,
-      sni: params.get("sni") || params.get("host") || url.hostname
-    };
-  }
-  throw new Error("Shadowsocks link invalid");
-}
-__name(parseShadowsocksLink, "parseShadowsocksLink");
+import { parseV2RayLink } from './linkParser.js';
 
-// src/converter/configGenerators.js
-function generateClashConfig(links, isFullConfig = false) {
-  const parsedLinks = links.map((link) => parseV2RayLink(link));
-  let config = `# Clash Configuration
-# Generated at: ${(/* @__PURE__ */ new Date()).toISOString()}
-
-`;
+export function generateClashConfig(links, isFullConfig = false) {
+  const parsedLinks = links.map(link => parseV2RayLink(link));
+  
+  let config = `# Clash Configuration\n# Generated at: ${new Date().toISOString()}\n\n`;
+  
   if (isFullConfig) {
     config += `port: 7890
 socks-port: 7891
@@ -161,14 +28,14 @@ dns:
     - https://dns.google/dns-query
 
 rule-providers:
-   ADS:
+  â›” ADS:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/malikshi/open_clash/main/rule_provider/rule_basicads.yaml"
     path: "./rule_provider/rule_basicads.yaml"
     interval: 86400
 
-   Porn:
+  ðŸ”ž Porn:
     type: http
     behavior: domain
     url: "https://raw.githubusercontent.com/malikshi/open_clash/main/rule_provider/rule_porn.yaml"
@@ -177,64 +44,51 @@ rule-providers:
 
 `;
   }
-  config += `proxies:
-`;
-  parsedLinks.forEach((link) => {
-    config += `  - name: "${link.name}"
-`;
-    config += `    type: ${link.type}
-`;
-    config += `    server: ${link.server}
-`;
-    config += `    port: ${link.port}
-`;
-    if (link.type === "vmess") {
-      config += `    uuid: ${link.uuid}
-`;
-      config += `    alterId: ${link.alterId}
-`;
-      config += `    cipher: ${link.cipher}
-`;
-    } else if (link.type === "vless") {
-      config += `    uuid: ${link.uuid}
-`;
-    } else if (link.type === "trojan") {
-      config += `    password: ${link.password}
-`;
-    } else if (link.type === "ss") {
-      config += `    cipher: ${link.cipher}
-`;
-      config += `    password: ${link.password}
-`;
+  
+  config += `proxies:\n`;
+  
+  parsedLinks.forEach(link => {
+    config += `  - name: "${link.name}"\n`;
+    config += `    type: ${link.type}\n`;
+    config += `    server: ${link.server}\n`;
+    config += `    port: ${link.port}\n`;
+    
+    if (link.type === 'vmess') {
+      config += `    uuid: ${link.uuid}\n`;
+      config += `    alterId: ${link.alterId}\n`;
+      config += `    cipher: ${link.cipher}\n`;
+    } else if (link.type === 'vless') {
+      config += `    uuid: ${link.uuid}\n`;
+    } else if (link.type === 'trojan') {
+      config += `    password: ${link.password}\n`;
+    } else if (link.type === 'ss') {
+      config += `    cipher: ${link.cipher}\n`;
+      config += `    password: ${link.password}\n`;
     }
-    config += `    udp: true
-`;
+    
+    config += `    udp: true\n`;
+    
     if (link.tls) {
-      config += `    tls: true
-`;
-      config += `    skip-cert-verify: ${link.skipCertVerify}
-`;
+      config += `    tls: true\n`;
+      config += `    skip-cert-verify: ${link.skipCertVerify}\n`;
       if (link.sni) {
-        config += `    servername: ${link.sni}
-`;
+        config += `    servername: ${link.sni}\n`;
       }
     }
-    if (link.network === "ws") {
-      config += `    network: ws
-`;
-      config += `    ws-opts:
-`;
-      config += `      path: "${link.wsPath}"
-`;
+    
+    if (link.network === 'ws') {
+      config += `    network: ws\n`;
+      config += `    ws-opts:\n`;
+      config += `      path: "${link.wsPath}"\n`;
       if (link.wsHost) {
-        config += `      headers:
-`;
-        config += `        Host: "${link.wsHost}"
-`;
+        config += `      headers:\n`;
+        config += `        Host: "${link.wsHost}"\n`;
       }
     }
-    config += "\n";
+    
+    config += '\n';
   });
+  
   if (isFullConfig) {
     config += `proxy-groups:
   - name: "INTERNET"
@@ -250,36 +104,36 @@ rule-providers:
     type: select
     proxies:
       - "DIRECT"
-      - "REJECT"
-`;
-    parsedLinks.forEach((link) => {
-      config += `      - "${link.name}"
-`;
+      - "REJECT"\n`;
+    
+    parsedLinks.forEach(link => {
+      config += `      - "${link.name}"\n`;
     });
+    
     config += `
   - name: "BEST-PING"
     type: url-test
     url: "http://www.gstatic.com/generate_204"
     interval: 300
     tolerance: 50
-    proxies:
-`;
-    parsedLinks.forEach((link) => {
-      config += `      - "${link.name}"
-`;
+    proxies:\n`;
+    
+    parsedLinks.forEach(link => {
+      config += `      - "${link.name}"\n`;
     });
+    
     config += `
   - name: "BALANCED"
     type: load-balance
     url: "http://www.gstatic.com/generate_204"
     interval: 300
     tolerance: 50
-    proxies:
-`;
-    parsedLinks.forEach((link) => {
-      config += `      - "${link.name}"
-`;
+    proxies:\n`;
+    
+    parsedLinks.forEach(link => {
+      config += `      - "${link.name}"\n`;
     });
+    
     config += `
   - name: "PORN"
     type: select
@@ -294,21 +148,23 @@ rule-providers:
       - "SELECTOR"
 
 rules:
-  - RULE-SET, ADS,ADS
-  - RULE-SET, Porn,PORN
+  - RULE-SET,â›” ADS,ADS
+  - RULE-SET,ðŸ”ž Porn,PORN
   - IP-CIDR,192.168.0.0/16,DIRECT
   - IP-CIDR,10.0.0.0/8,DIRECT
   - IP-CIDR,172.16.0.0/12,DIRECT
   - IP-CIDR,127.0.0.0/8,DIRECT
-  - MATCH,INTERNET
-`;
+  - MATCH,INTERNET\n`;
   }
+  
   return config;
 }
-__name(generateClashConfig, "generateClashConfig");
-function generateNekoboxConfig(links, isFullConfig = false) {
-  const parsedLinks = links.map((link) => parseV2RayLink(link));
-  let config = isFullConfig ? `{
+
+export function generateNekoboxConfig(links, isFullConfig = false) {
+  const parsedLinks = links.map(link => parseV2RayLink(link));
+  
+  let config = isFullConfig 
+    ? `{
   "dns": {
     "final": "dns-final",
     "independent_cache": true,
@@ -400,14 +256,15 @@ function generateNekoboxConfig(links, isFullConfig = false) {
       "tag": "Internet",
       "type": "selector",
       "outbounds": [
-        "Best Latency",
-` : `{
-  "outbounds": [
-`;
-  parsedLinks.forEach((link) => {
-    config += `        "${link.name}",
-`;
+        "Best Latency",\n`
+    : `{
+  "outbounds": [\n`;
+  
+  // Add proxy tags for selector
+  parsedLinks.forEach(link => {
+    config += `        "${link.name}",\n`;
   });
+  
   if (isFullConfig) {
     config += `        "direct"
       ]
@@ -415,233 +272,154 @@ function generateNekoboxConfig(links, isFullConfig = false) {
     {
       "type": "urltest",
       "tag": "Best Latency",
-      "outbounds": [
-`;
-    parsedLinks.forEach((link) => {
-      config += `        "${link.name}",
-`;
+      "outbounds": [\n`;
+    
+    parsedLinks.forEach(link => {
+      config += `        "${link.name}",\n`;
     });
+    
     config += `        "direct"
       ],
       "url": "https://detectportal.firefox.com/success.txt",
       "interval": "1m0s"
-    },
-`;
+    },\n`;
   }
+  
+  // Add proxy configurations
   parsedLinks.forEach((link, index) => {
-    if (index > 0) config += ",\n";
-    config += `    {
-`;
-    config += `      "tag": "${link.name}",
-`;
-    if (link.type === "vmess") {
-      config += `      "type": "vmess",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "uuid": "${link.uuid}",
-`;
-      config += `      "alter_id": ${link.alterId || 0},
-`;
-      config += `      "security": "${link.cipher || "auto"}",
-`;
-      config += `      "packet_encoding": "xudp",
-`;
-      config += `      "domain_strategy": "ipv4_only",
-`;
+    if (index > 0) config += ',\n';
+    
+    config += `    {\n`;
+    config += `      "tag": "${link.name}",\n`;
+    
+    if (link.type === 'vmess') {
+      config += `      "type": "vmess",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "uuid": "${link.uuid}",\n`;
+      config += `      "alter_id": ${link.alterId || 0},\n`;
+      config += `      "security": "${link.cipher || "auto"}",\n`;
+      config += `      "packet_encoding": "xudp",\n`;
+      config += `      "domain_strategy": "ipv4_only",\n`;
+      
       if (link.tls) {
-        config += `      "tls": {
-`;
-        config += `        "enabled": true,
-`;
-        config += `        "insecure": ${link.skipCertVerify},
-`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
-`;
-        config += `        "utls": {
-`;
-        config += `          "enabled": true,
-`;
-        config += `          "fingerprint": "randomized"
-`;
-        config += `        }
-`;
-        config += `      },
-`;
+        config += `      "tls": {\n`;
+        config += `        "enabled": true,\n`;
+        config += `        "insecure": ${link.skipCertVerify},\n`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
+        config += `        "utls": {\n`;
+        config += `          "enabled": true,\n`;
+        config += `          "fingerprint": "randomized"\n`;
+        config += `        }\n`;
+        config += `      },\n`;
       }
-      if (link.network === "ws") {
-        config += `      "transport": {
-`;
-        config += `        "type": "ws",
-`;
-        config += `        "path": "${link.wsPath}",
-`;
-        config += `        "headers": {
-`;
-        config += `          "Host": "${link.wsHost || link.server}"
-`;
-        config += `        },
-`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
-`;
-        config += `      },
-`;
+      
+      if (link.network === 'ws') {
+        config += `      "transport": {\n`;
+        config += `        "type": "ws",\n`;
+        config += `        "path": "${link.wsPath}",\n`;
+        config += `        "headers": {\n`;
+        config += `          "Host": "${link.wsHost || link.server}"\n`;
+        config += `        },\n`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
+        config += `      },\n`;
       }
-      config += `      "multiplex": {
-`;
-      config += `        "enabled": false,
-`;
-      config += `        "protocol": "smux",
-`;
-      config += `        "max_streams": 32
-`;
-      config += `      }
-`;
-    } else if (link.type === "vless") {
-      config += `      "type": "vless",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "uuid": "${link.uuid}",
-`;
-      config += `      "flow": "",
-`;
-      config += `      "packet_encoding": "xudp",
-`;
-      config += `      "domain_strategy": "ipv4_only",
-`;
+      
+      config += `      "multiplex": {\n`;
+      config += `        "enabled": false,\n`;
+      config += `        "protocol": "smux",\n`;
+      config += `        "max_streams": 32\n`;
+      config += `      }\n`;
+    } 
+    else if (link.type === 'vless') {
+      config += `      "type": "vless",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "uuid": "${link.uuid}",\n`;
+      config += `      "flow": "",\n`;
+      config += `      "packet_encoding": "xudp",\n`;
+      config += `      "domain_strategy": "ipv4_only",\n`;
+      
       if (link.tls) {
-        config += `      "tls": {
-`;
-        config += `        "enabled": true,
-`;
-        config += `        "insecure": ${link.skipCertVerify},
-`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
-`;
-        config += `        "utls": {
-`;
-        config += `          "enabled": true,
-`;
-        config += `          "fingerprint": "randomized"
-`;
-        config += `        }
-`;
-        config += `      },
-`;
+        config += `      "tls": {\n`;
+        config += `        "enabled": true,\n`;
+        config += `        "insecure": ${link.skipCertVerify},\n`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
+        config += `        "utls": {\n`;
+        config += `          "enabled": true,\n`;
+        config += `          "fingerprint": "randomized"\n`;
+        config += `        }\n`;
+        config += `      },\n`;
       }
-      if (link.network === "ws") {
-        config += `      "transport": {
-`;
-        config += `        "type": "ws",
-`;
-        config += `        "path": "${link.wsPath}",
-`;
-        config += `        "headers": {
-`;
-        config += `          "Host": "${link.wsHost || link.server}"
-`;
-        config += `        },
-`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
-`;
-        config += `      },
-`;
+      
+      if (link.network === 'ws') {
+        config += `      "transport": {\n`;
+        config += `        "type": "ws",\n`;
+        config += `        "path": "${link.wsPath}",\n`;
+        config += `        "headers": {\n`;
+        config += `          "Host": "${link.wsHost || link.server}"\n`;
+        config += `        },\n`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
+        config += `      },\n`;
       }
-      config += `      "multiplex": {
-`;
-      config += `        "enabled": false,
-`;
-      config += `        "protocol": "smux",
-`;
-      config += `        "max_streams": 32
-`;
-      config += `      }
-`;
-    } else if (link.type === "trojan") {
-      config += `      "type": "trojan",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "password": "${link.password}",
-`;
-      config += `      "domain_strategy": "ipv4_only",
-`;
-      if (link.tls) {
-        config += `      "tls": {
-`;
-        config += `        "enabled": true,
-`;
-        config += `        "insecure": ${link.skipCertVerify},
-`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
-`;
-        config += `        "utls": {
-`;
-        config += `          "enabled": true,
-`;
-        config += `          "fingerprint": "randomized"
-`;
-        config += `        }
-`;
-        config += `      },
-`;
-      }
-      if (link.network === "ws") {
-        config += `      "transport": {
-`;
-        config += `        "type": "ws",
-`;
-        config += `        "path": "${link.wsPath}",
-`;
-        config += `        "headers": {
-`;
-        config += `          "Host": "${link.wsHost || link.server}"
-`;
-        config += `        },
-`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
-`;
-        config += `      },
-`;
-      }
-      config += `      "multiplex": {
-`;
-      config += `        "enabled": false,
-`;
-      config += `        "protocol": "smux",
-`;
-      config += `        "max_streams": 32
-`;
-      config += `      }
-`;
-    } else if (link.type === "ss") {
-      config += `      "type": "shadowsocks",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "method": "${link.cipher || "none"}",
-`;
-      config += `      "password": "${link.password}",
-`;
-      config += `      "plugin": "v2ray-plugin",
-`;
-      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"
-`;
+      
+      config += `      "multiplex": {\n`;
+      config += `        "enabled": false,\n`;
+      config += `        "protocol": "smux",\n`;
+      config += `        "max_streams": 32\n`;
+      config += `      }\n`;
     }
+    else if (link.type === 'trojan') {
+      config += `      "type": "trojan",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "password": "${link.password}",\n`;
+      config += `      "domain_strategy": "ipv4_only",\n`;
+      
+      if (link.tls) {
+        config += `      "tls": {\n`;
+        config += `        "enabled": true,\n`;
+        config += `        "insecure": ${link.skipCertVerify},\n`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
+        config += `        "utls": {\n`;
+        config += `          "enabled": true,\n`;
+        config += `          "fingerprint": "randomized"\n`;
+        config += `        }\n`;
+        config += `      },\n`;
+      }
+      
+      if (link.network === 'ws') {
+        config += `      "transport": {\n`;
+        config += `        "type": "ws",\n`;
+        config += `        "path": "${link.wsPath}",\n`;
+        config += `        "headers": {\n`;
+        config += `          "Host": "${link.wsHost || link.server}"\n`;
+        config += `        },\n`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
+        config += `      },\n`;
+      }
+      
+      config += `      "multiplex": {\n`;
+      config += `        "enabled": false,\n`;
+      config += `        "protocol": "smux",\n`;
+      config += `        "max_streams": 32\n`;
+      config += `      }\n`;
+    }
+    else if (link.type === 'ss') {
+      config += `      "type": "shadowsocks",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "method": "${link.cipher || "none"}",\n`;
+      config += `      "password": "${link.password}",\n`;
+      config += `      "plugin": "v2ray-plugin",\n`;
+      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"\n`;
+    }
+    
     config += `    }`;
   });
+  
   if (isFullConfig) {
-    config += `,
-    {
+    config += `,\n    {
       "tag": "direct",
       "type": "direct"
     },
@@ -698,16 +476,18 @@ function generateNekoboxConfig(links, isFullConfig = false) {
   }
 }`;
   } else {
-    config += `
-  ]
+    config += `\n  ]
 }`;
   }
+  
   return config;
 }
-__name(generateNekoboxConfig, "generateNekoboxConfig");
-function generateSingboxConfig(links, isFullConfig = false) {
-  const parsedLinks = links.map((link) => parseV2RayLink(link));
-  let config = isFullConfig ? `{
+
+export function generateSingboxConfig(links, isFullConfig = false) {
+  const parsedLinks = links.map(link => parseV2RayLink(link));
+  
+  let config = isFullConfig 
+    ? `{
   "log": {
     "level": "info"
   },
@@ -768,14 +548,15 @@ function generateSingboxConfig(links, isFullConfig = false) {
       "tag": "Internet",
       "type": "selector",
       "outbounds": [
-        "Best Latency",
-` : `{
-  "outbounds": [
-`;
-  parsedLinks.forEach((link) => {
-    config += `        "${link.name}",
-`;
+        "Best Latency",\n`
+    : `{
+  "outbounds": [\n`;
+  
+  // Add proxy tags for selector
+  parsedLinks.forEach(link => {
+    config += `        "${link.name}",\n`;
   });
+  
   if (isFullConfig) {
     config += `        "direct"
       ]
@@ -783,231 +564,153 @@ function generateSingboxConfig(links, isFullConfig = false) {
     {
       "type": "urltest",
       "tag": "Best Latency",
-      "outbounds": [
-`;
-    parsedLinks.forEach((link) => {
-      config += `        "${link.name}",
-`;
+      "outbounds": [\n`;
+    
+    parsedLinks.forEach(link => {
+      config += `        "${link.name}",\n`;
     });
+    
     config += `        "direct"
       ],
       "url": "https://www.google.com",
       "interval": "10s"
-    },
-`;
+    },\n`;
   }
+  
+  // Add proxy configurations
   parsedLinks.forEach((link, index) => {
-    if (index > 0) config += ",\n";
-    config += `    {
-`;
-    config += `      "tag": "${link.name}",
-`;
-    if (link.type === "vmess") {
-      config += `      "type": "vmess",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "uuid": "${link.uuid}",
-`;
-      config += `      "alter_id": ${link.alterId || 0},
-`;
-      config += `      "security": "${link.cipher || "zero"}",
-`;
-      config += `      "packet_encoding": "xudp",
-`;
-      config += `      "domain_strategy": "ipv4_only",
-`;
+    if (index > 0) config += ',\n';
+    
+    config += `    {\n`;
+    config += `      "tag": "${link.name}",\n`;
+    
+    if (link.type === 'vmess') {
+      config += `      "type": "vmess",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "uuid": "${link.uuid}",\n`;
+      config += `      "alter_id": ${link.alterId || 0},\n`;
+      config += `      "security": "${link.cipher || "zero"}",\n`;
+      config += `      "packet_encoding": "xudp",\n`;
+      config += `      "domain_strategy": "ipv4_only",\n`;
+      
       if (link.tls) {
-        config += `      "tls": {
-`;
-        config += `        "enabled": true,
-`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
-`;
-        config += `        "insecure": ${link.skipCertVerify},
-`;
-        config += `        "utls": {
-`;
-        config += `          "enabled": true,
-`;
-        config += `          "fingerprint": "randomized"
-`;
-        config += `        }
-`;
-        config += `      },
-`;
+        config += `      "tls": {\n`;
+        config += `        "enabled": true,\n`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
+        config += `        "insecure": ${link.skipCertVerify},\n`;
+        config += `        "utls": {\n`;
+        config += `          "enabled": true,\n`;
+        config += `          "fingerprint": "randomized"\n`;
+        config += `        }\n`;
+        config += `      },\n`;
       }
-      if (link.network === "ws") {
-        config += `      "transport": {
-`;
-        config += `        "type": "ws",
-`;
-        config += `        "path": "${link.wsPath}",
-`;
-        config += `        "headers": {
-`;
-        config += `          "Host": "${link.wsHost || link.server}"
-`;
-        config += `        },
-`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
-`;
-        config += `      },
-`;
+      
+      if (link.network === 'ws') {
+        config += `      "transport": {\n`;
+        config += `        "type": "ws",\n`;
+        config += `        "path": "${link.wsPath}",\n`;
+        config += `        "headers": {\n`;
+        config += `          "Host": "${link.wsHost || link.server}"\n`;
+        config += `        },\n`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
+        config += `      },\n`;
       }
-      config += `      "multiplex": {
-`;
-      config += `        "enabled": false,
-`;
-      config += `        "protocol": "smux",
-`;
-      config += `        "max_streams": 32
-`;
-      config += `      }
-`;
-    } else if (link.type === "vless") {
-      config += `      "type": "vless",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "uuid": "${link.uuid}",
-`;
-      config += `      "packet_encoding": "xudp",
-`;
-      config += `      "domain_strategy": "ipv4_only",
-`;
+      
+      config += `      "multiplex": {\n`;
+      config += `        "enabled": false,\n`;
+      config += `        "protocol": "smux",\n`;
+      config += `        "max_streams": 32\n`;
+      config += `      }\n`;
+    } 
+    else if (link.type === 'vless') {
+      config += `      "type": "vless",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "uuid": "${link.uuid}",\n`;
+      config += `      "packet_encoding": "xudp",\n`;
+      config += `      "domain_strategy": "ipv4_only",\n`;
+      
       if (link.tls) {
-        config += `      "tls": {
-`;
-        config += `        "enabled": true,
-`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
-`;
-        config += `        "insecure": ${link.skipCertVerify},
-`;
-        config += `        "utls": {
-`;
-        config += `          "enabled": true,
-`;
-        config += `          "fingerprint": "randomized"
-`;
-        config += `        }
-`;
-        config += `      },
-`;
+        config += `      "tls": {\n`;
+        config += `        "enabled": true,\n`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
+        config += `        "insecure": ${link.skipCertVerify},\n`;
+        config += `        "utls": {\n`;
+        config += `          "enabled": true,\n`;
+        config += `          "fingerprint": "randomized"\n`;
+        config += `        }\n`;
+        config += `      },\n`;
       }
-      if (link.network === "ws") {
-        config += `      "transport": {
-`;
-        config += `        "type": "ws",
-`;
-        config += `        "path": "${link.wsPath}",
-`;
-        config += `        "headers": {
-`;
-        config += `          "Host": "${link.wsHost || link.server}"
-`;
-        config += `        },
-`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
-`;
-        config += `      },
-`;
+      
+      if (link.network === 'ws') {
+        config += `      "transport": {\n`;
+        config += `        "type": "ws",\n`;
+        config += `        "path": "${link.wsPath}",\n`;
+        config += `        "headers": {\n`;
+        config += `          "Host": "${link.wsHost || link.server}"\n`;
+        config += `        },\n`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
+        config += `      },\n`;
       }
-      config += `      "multiplex": {
-`;
-      config += `        "enabled": false,
-`;
-      config += `        "protocol": "smux",
-`;
-      config += `        "max_streams": 32
-`;
-      config += `      }
-`;
-    } else if (link.type === "trojan") {
-      config += `      "type": "trojan",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "password": "${link.password}",
-`;
-      config += `      "domain_strategy": "ipv4_only",
-`;
-      if (link.tls) {
-        config += `      "tls": {
-`;
-        config += `        "enabled": true,
-`;
-        config += `        "server_name": "${link.sni || link.wsHost || link.server}",
-`;
-        config += `        "insecure": ${link.skipCertVerify},
-`;
-        config += `        "utls": {
-`;
-        config += `          "enabled": true,
-`;
-        config += `          "fingerprint": "randomized"
-`;
-        config += `        }
-`;
-        config += `      },
-`;
-      }
-      if (link.network === "ws") {
-        config += `      "transport": {
-`;
-        config += `        "type": "ws",
-`;
-        config += `        "path": "${link.wsPath}",
-`;
-        config += `        "headers": {
-`;
-        config += `          "Host": "${link.wsHost || link.server}"
-`;
-        config += `        },
-`;
-        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"
-`;
-        config += `      },
-`;
-      }
-      config += `      "multiplex": {
-`;
-      config += `        "enabled": false,
-`;
-      config += `        "protocol": "smux",
-`;
-      config += `        "max_streams": 32
-`;
-      config += `      }
-`;
-    } else if (link.type === "ss") {
-      config += `      "type": "shadowsocks",
-`;
-      config += `      "server": "${link.server}",
-`;
-      config += `      "server_port": ${link.port},
-`;
-      config += `      "method": "${link.cipher || "none"}",
-`;
-      config += `      "password": "${link.password}",
-`;
-      config += `      "plugin": "v2ray-plugin",
-`;
-      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"
-`;
+      
+      config += `      "multiplex": {\n`;
+      config += `        "enabled": false,\n`;
+      config += `        "protocol": "smux",\n`;
+      config += `        "max_streams": 32\n`;
+      config += `      }\n`;
     }
+    else if (link.type === 'trojan') {
+      config += `      "type": "trojan",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "password": "${link.password}",\n`;
+      config += `      "domain_strategy": "ipv4_only",\n`;
+      
+      if (link.tls) {
+        config += `      "tls": {\n`;
+        config += `        "enabled": true,\n`;
+        config += `        "server_name": "${link.sni || link.wsHost || link.server}",\n`;
+        config += `        "insecure": ${link.skipCertVerify},\n`;
+        config += `        "utls": {\n`;
+        config += `          "enabled": true,\n`;
+        config += `          "fingerprint": "randomized"\n`;
+        config += `        }\n`;
+        config += `      },\n`;
+      }
+      
+      if (link.network === 'ws') {
+        config += `      "transport": {\n`;
+        config += `        "type": "ws",\n`;
+        config += `        "path": "${link.wsPath}",\n`;
+        config += `        "headers": {\n`;
+        config += `          "Host": "${link.wsHost || link.server}"\n`;
+        config += `        },\n`;
+        config += `        "early_data_header_name": "Sec-WebSocket-Protocol"\n`;
+        config += `      },\n`;
+      }
+      
+      config += `      "multiplex": {\n`;
+      config += `        "enabled": false,\n`;
+      config += `        "protocol": "smux",\n`;
+      config += `        "max_streams": 32\n`;
+      config += `      }\n`;
+    }
+    else if (link.type === 'ss') {
+      config += `      "type": "shadowsocks",\n`;
+      config += `      "server": "${link.server}",\n`;
+      config += `      "server_port": ${link.port},\n`;
+      config += `      "method": "${link.cipher || "none"}",\n`;
+      config += `      "password": "${link.password}",\n`;
+      config += `      "plugin": "v2ray-plugin",\n`;
+      config += `      "plugin_opts": "mux=0;path=${link.wsPath};host=${link.wsHost || link.server};tls=${link.tls ? "1" : "0"}"\n`;
+    }
+    
     config += `    }`;
   });
+  
   if (isFullConfig) {
-    config += `,
-    {
+    config += `,\n    {
       "type": "direct",
       "tag": "direct"
     },
@@ -1068,14 +771,308 @@ function generateSingboxConfig(links, isFullConfig = false) {
   }
 }`;
   } else {
-    config += `
-  ]
+    config += `\n  ]
 }`;
   }
+  
   return config;
 }
-__name(generateSingboxConfig, "generateSingboxConfig");
+import { generateClashConfig, generateNekoboxConfig, generateSingboxConfig } from './configGenerators.js';
 
+// Set untuk menyimpan semua chatId pengguna secara unik
+// CATATAN: Untuk penggunaan produksi, Anda harus menggunakan database persisten.
+const userChats = new Set();
+
+export async function Conver(link) {
+  console.log("Bot link:", link);
+}
+
+export class Converterbot {
+  constructor(token, apiUrl, ownerId) {
+    this.token = token;
+    this.apiUrl = apiUrl || 'https://api.telegram.org';
+    this.ownerId = ownerId;
+  }
+
+  async handleUpdate(update) {
+    if (!update.message) return new Response('OK', { status: 200 });
+
+    const chatId = update.message.chat.id;
+    const text = update.message.text || '';
+    const messageId = update.message.message_id;
+
+    // Tambahkan chatId pengguna ke daftar setiap kali ada interaksi
+    userChats.add(chatId);
+    console.log(`User ${chatId} added. Total users: ${userChats.size}`);
+
+    // Perintah untuk broadcast (hanya bisa oleh ownerId)
+    if (text.startsWith('/broadcast') && chatId.toString() === this.ownerId.toString()) {
+      const broadcastMessage = text.substring('/broadcast '.length).trim();
+      if (broadcastMessage) {
+        await this.sendBroadcastMessage(broadcastMessage);
+      } else {
+        await this.sendMessage(chatId, 'Contoh penggunaan: `/broadcast Pesan yang ingin Anda siarkan.`');
+      }
+      return new Response('OK', { status: 200 });
+    }
+
+    if (text.startsWith('/converter')) {
+      await this.sendMessage(
+        chatId,
+        `ðŸ¤– *Geo Project Bot*\n\nKirimkan link konfigurasi V2Ray dan saya *SPIDERMAN* akan mengubahnya ke format *Singbox*, *Nekobox*, dan *Clash*.\n\nContoh:\n\`vless://...\`\n\`vmess://...\`\n\`trojan://...\`\n\`ss://...\`\n\nCatatan:\n- Maksimal 10 link per permintaan.\n- Disarankan menggunakan *Singbox versi 1.10.3* atau *1.11.8*.`,
+        { reply_to_message_id: messageId }
+      );
+      return new Response('OK', { status: 200 });
+    }
+
+    if (text.includes('://')) {
+      try {
+        const links = text
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.includes('://'))
+          .slice(0, 10);
+
+        if (links.length === 0) {
+          await this.sendMessage(chatId, 'âŒ Tidak ada link valid yang ditemukan. Kirimkan link VMess, VLESS, Trojan, atau Shadowsocks.', { reply_to_message_id: messageId });
+          return new Response('OK', { status: 200 });
+        }
+
+        const clashConfig = generateClashConfig(links, true);
+        const nekoboxConfig = generateNekoboxConfig(links, true);
+        const singboxConfig = generateSingboxConfig(links, true);
+
+        await this.sendDocument(chatId, clashConfig, 'clash.yaml', 'text/yaml', { reply_to_message_id: messageId });
+        await this.sendDocument(chatId, nekoboxConfig, 'nekobox.json', 'application/json', { reply_to_message_id: messageId });
+        await this.sendDocument(chatId, singboxConfig, 'singbox.bpf', 'application/json', { reply_to_message_id: messageId });
+
+      } catch (error) {
+        console.error('Error processing links:', error);
+        await this.sendMessage(chatId, `Error: ${error.message}`, { reply_to_message_id: messageId });
+      }
+    } else {
+    }
+
+    return new Response('OK', { status: 200 });
+  }
+
+  async sendMessage(chatId, text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
+    const body = {
+      chat_id: chatId,
+      text: text,
+      parse_mode: 'Markdown',
+      ...options
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return response.json();
+  }
+
+  async sendDocument(chatId, content, filename, mimeType, options = {}) {
+    const formData = new FormData();
+    const blob = new Blob([content], { type: mimeType });
+    formData.append('document', blob, filename);
+    formData.append('chat_id', chatId.toString());
+
+    if (options.reply_to_message_id) {
+      formData.append('reply_to_message_id', options.reply_to_message_id.toString());
+    }
+
+    const response = await fetch(
+      `${this.apiUrl}/bot${this.token}/sendDocument`, {
+      method: 'POST',
+      body: formData
+    }
+    );
+
+    return response.json();
+  }
+
+  // Fungsi baru untuk broadcast pesan
+  async sendBroadcastMessage(message) {
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const chatId of userChats) {
+      try {
+        await this.sendMessage(chatId, message);
+        successCount++;
+        // Tambahkan delay kecil antar pesan untuk menghindari batasan rate Telegram
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        console.error(`Gagal mengirim pesan ke ${chatId}:`, error);
+        failCount++;
+        // Opsional: Hapus chatId jika user telah memblokir bot
+        if (error.description && (error.description.includes('bot was blocked by the user') || error.description.includes('chat not found'))) {
+          userChats.delete(chatId);
+        }
+      }
+    }
+
+    // Kirim laporan broadcast ke owner
+    const totalUsers = userChats.size; // Jumlah user yang masih terdaftar
+    const broadcastReport = `Pesan broadcast telah dikirimkan.\n\nTotal user terdaftar: *${totalUsers}*\nBerhasil dikirim: *${successCount}*\nGagal dikirim: *${failCount}*`;
+    await this.sendMessage(this.ownerId, broadcastReport);
+  }
+}
+
+// Menggunakan TextDecoder untuk decode base64 di lingkungan CF Workers
+function decodeBase64(str) {
+  // Alternatif 1: Menggunakan atob (browser API)
+  if (typeof atob === 'function') {
+    return atob(str);
+  }
+  
+  // Alternatif 2: Implementasi manual base64 decode
+  const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  let i = 0;
+  let char1, char2, char3;
+  let enc1, enc2, enc3, enc4;
+
+  // Remove all characters that are not A-Z, a-z, 0-9, +, /, or =
+  str = str.replace(/[^A-Za-z0-9+/=]/g, '');
+
+  while (i < str.length) {
+    enc1 = base64Chars.indexOf(str.charAt(i++));
+    enc2 = base64Chars.indexOf(str.charAt(i++));
+    enc3 = base64Chars.indexOf(str.charAt(i++));
+    enc4 = base64Chars.indexOf(str.charAt(i++));
+
+    char1 = (enc1 << 2) | (enc2 >> 4);
+    char2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+    char3 = ((enc3 & 3) << 6) | enc4;
+
+    result += String.fromCharCode(char1);
+    if (enc3 !== 64) result += String.fromCharCode(char2);
+    if (enc4 !== 64) result += String.fromCharCode(char3);
+  }
+
+  return result;
+}
+
+export function parseV2RayLink(link) {
+  try {
+    if (link.startsWith('vmess://')) {
+      const base64 = link.substring(8);
+      const decoded = decodeBase64(base64);
+      let config;
+      
+      try {
+        config = JSON.parse(decoded);
+      } catch (e) {
+        // Fallback untuk format non-standard
+        const match = decoded.match(/{"v":"\d+".*}/);
+        if (match) {
+          config = JSON.parse(match[0]);
+        } else {
+          throw new Error('Format VMess tidak valid');
+        }
+      }
+      
+      return {
+        type: 'vmess',
+        name: config.ps || `VMess-${config.add}:${config.port}`,
+        server: config.add,
+        port: config.port,
+        uuid: config.id,
+        alterId: config.aid || 0,
+        cipher: config.scy || 'auto',
+        tls: config.tls === 'tls',
+        skipCertVerify: false,
+        network: config.net || 'tcp',
+        wsPath: config.path || '',
+        wsHost: config.host || config.add,
+        sni: config.sni || config.host || config.add
+      };
+    }
+
+    if (link.startsWith('vless://')) {
+      return parseVLESSLink(link);
+    }
+
+    if (link.startsWith('trojan://')) {
+      return parseTrojanLink(link);
+    }
+
+    if (link.startsWith('ss://')) {
+      return parseShadowsocksLink(link);
+    }
+
+    throw new Error('Unsupported link type');
+
+  } catch (error) {
+    console.error(`Failed to parse link: ${link}`, error);
+    throw new Error(`Gagal parsing link VMess: ${error.message}`);
+  }
+}
+
+function parseVLESSLink(link) {
+  const url = new URL(link);
+  const params = new URLSearchParams(url.search);
+  
+  return {
+    type: 'vless',
+    name: decodeURIComponent(url.hash.substring(1)),
+    server: url.hostname,
+    port: parseInt(url.port),
+    uuid: url.username,
+    tls: params.get('security') === 'tls',
+    skipCertVerify: false,
+    network: params.get('type') || 'tcp',
+    wsPath: params.get('path') || '',
+    wsHost: params.get('host') || url.hostname,
+    sni: params.get('sni') || params.get('host') || url.hostname
+  };
+}
+
+function parseTrojanLink(link) {
+  const url = new URL(link);
+  const params = new URLSearchParams(url.search);
+  
+  return {
+    type: 'trojan',
+    name: decodeURIComponent(url.hash.substring(1)),
+    server: url.hostname,
+    port: parseInt(url.port),
+    password: url.username,
+    tls: params.get('security') === 'tls',
+    skipCertVerify: false,
+    network: params.get('type') || 'tcp',
+    wsPath: params.get('path') || '',
+    wsHost: params.get('host') || url.hostname,
+    sni: params.get('sni') || params.get('host') || url.hostname
+  };
+}
+
+function parseShadowsocksLink(link) {
+  const url = new URL(link);
+  const params = new URLSearchParams(url.search);
+  
+  if (params.get('plugin') === 'v2ray-plugin' || params.get('type') === 'ws') {
+    return {
+      type: 'ss',
+      name: decodeURIComponent(url.hash.substring(1)),
+      server: url.hostname,
+      port: parseInt(url.port),
+      cipher: url.protocol.substring(3) || 'none',
+      password: url.username,
+      tls: params.get('security') === 'tls',
+      skipCertVerify: false,
+      network: params.get('type') || 'tcp',
+      wsPath: params.get('path') || '',
+      wsHost: params.get('host') || url.hostname,
+      sni: params.get('sni') || params.get('host') || url.hostname
+    };
+  }
+
+  throw new Error('Shadowsocks link invalid');
+}
 // src/converter/converter.js
 const Converterbot = class {
   static {
@@ -1116,20 +1113,20 @@ const Converterbot = class {
           return text.toString().replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
         };
         
-        let userLine = `👤 **${userNumber}.**`;
+        let userLine = `ðŸ‘¤ **${userNumber}.**`;
         if (username && username !== "N/A") {
           userLine += ` ${escapeMarkdown(username)}`;
         }
-        const idLine = `🆔 ID: \`${userId}\``;
+        const idLine = `ðŸ†” ID: \`${userId}\``;
         return `${userLine}\n${idLine}`;
       }).join("\n\n");
 
       // Format message dengan border dan layout yang lebih rapi
-      const messageText = `🎯 **DAFTAR PENGGUNA**\n
-╔═══════════════════╗
-📊 **Total:** ${totalUsers} pengguna
-📄 **Halaman:** ${page + 1}/${totalPages}
-╚═══════════════════╝
+      const messageText = `ðŸŽ¯ **DAFTAR PENGGUNA**\n
+â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+ðŸ“Š **Total:** ${totalUsers} pengguna
+ðŸ“„ **Halaman:** ${page + 1}/${totalPages}
+â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 ${userListText}`;
 
@@ -1138,10 +1135,10 @@ ${userListText}`;
       const row = [];
       
       if (page > 0) {
-        row.push({ text: "⬅️ Prev", callback_data: `userlist_page_${page - 1}` });
+        row.push({ text: "â¬…ï¸ Prev", callback_data: `userlist_page_${page - 1}` });
       }
       if (page < totalPages - 1) {
-        row.push({ text: "Next ➡️", callback_data: `userlist_page_${page + 1}` });
+        row.push({ text: "Next âž¡ï¸", callback_data: `userlist_page_${page + 1}` });
       }
       
       if (row.length > 0) {
@@ -1150,7 +1147,7 @@ ${userListText}`;
 
       // Hanya tombol refresh saja
       keyboard.push([
-        { text: "🔄 Refresh", callback_data: `userlist_page_0` }
+        { text: "ðŸ”„ Refresh", callback_data: `userlist_page_0` }
       ]);
 
       await this.editMessageText(chatId, messageId, messageText, {
@@ -1190,19 +1187,19 @@ ${userListText}`;
           return text.toString().replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
         };
         
-        let userLine = `👤 **${userNumber}.**`;
+        let userLine = `ðŸ‘¤ **${userNumber}.**`;
         if (username && username !== "N/A") {
           userLine += ` ${escapeMarkdown(username)}`;
         }
-        const idLine = `🆔 ID: \`${userId}\``;
+        const idLine = `ðŸ†” ID: \`${userId}\``;
         return `${userLine}\n${idLine}`;
       }).join("\n\n");
 
-      const messageText = `🎯 **DAFTAR PENGGUNA**\n
-╔═══════════════════╗
-📊 **Total:** ${totalUsers} pengguna
-📄 **Halaman:** ${page + 1}/${totalPages}
-╚═══════════════════╝
+      const messageText = `ðŸŽ¯ **DAFTAR PENGGUNA**\n
+â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+ðŸ“Š **Total:** ${totalUsers} pengguna
+ðŸ“„ **Halaman:** ${page + 1}/${totalPages}
+â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 ${userListText}`;
 
@@ -1210,10 +1207,10 @@ ${userListText}`;
       const row = [];
       
       if (page > 0) {
-        row.push({ text: "⬅️ Prev", callback_data: `userlist_page_${page - 1}` });
+        row.push({ text: "â¬…ï¸ Prev", callback_data: `userlist_page_${page - 1}` });
       }
       if (page < totalPages - 1) {
-        row.push({ text: "Next ➡️", callback_data: `userlist_page_${page + 1}` });
+        row.push({ text: "Next âž¡ï¸", callback_data: `userlist_page_${page + 1}` });
       }
       
       if (row.length > 0) {
@@ -1221,7 +1218,7 @@ ${userListText}`;
       }
 
       keyboard.push([
-        { text: "🔄 Refresh", callback_data: `userlist_page_0` }
+        { text: "ðŸ”„ Refresh", callback_data: `userlist_page_0` }
       ]);
 
       await this.editMessageText(chatId, messageId, messageText, {
@@ -1260,7 +1257,7 @@ ${userListText}`;
         if (broadcastMessage) {
           await this.sendBroadcastMessage(broadcastMessage, options);
         } else {
-          await this.sendMessage(chatId, "📢 **Cara Penggunaan Broadcast:**\n\n`/broadcast Pesan yang ingin Anda siarkan.`\n\n💡 *Contoh:* `/broadcast Halo semua! Ini pesan broadcast.`\n\n🖼️ **Untuk mengirim media:** Balas gambar atau video dengan `/broadcast [keterangan]`.", options);
+          await this.sendMessage(chatId, "ðŸ“¢ **Cara Penggunaan Broadcast:**\n\n`/broadcast Pesan yang ingin Anda siarkan.`\n\nðŸ’¡ *Contoh:* `/broadcast Halo semua! Ini pesan broadcast.`\n\nðŸ–¼ï¸ **Untuk mengirim media:** Balas gambar atau video dengan `/broadcast [keterangan]`.", options);
         }
       }
       return new Response("OK", { status: 200 });
@@ -1269,7 +1266,7 @@ ${userListText}`;
     // Handle userlist command
     if (text.startsWith("/userlist")) {
       // Loading message dengan emoji yang lebih menarik
-      const loadingMessage = await this.sendMessage(chatId, "⏳ *Memuat daftar pengguna...*", { parse_mode: "Markdown", ...options });
+      const loadingMessage = await this.sendMessage(chatId, "â³ *Memuat daftar pengguna...*", { parse_mode: "Markdown", ...options });
       let messageIdToDelete;
       
       if (loadingMessage && loadingMessage.result) {
@@ -1281,7 +1278,7 @@ ${userListText}`;
         const totalUsers = allUsers.length;
         
         if (totalUsers === 0) {
-          await this.sendMessage(chatId, "📭 *Belum ada pengguna yang terdaftar.*\n\n💡 *Pengguna akan otomatis terdaftar ketika berinteraksi dengan bot.*", { parse_mode: "Markdown", ...options });
+          await this.sendMessage(chatId, "ðŸ“­ *Belum ada pengguna yang terdaftar.*\n\nðŸ’¡ *Pengguna akan otomatis terdaftar ketika berinteraksi dengan bot.*", { parse_mode: "Markdown", ...options });
           return new Response("OK", { status: 200 });
         }
         
@@ -1306,20 +1303,20 @@ ${userListText}`;
             return text.toString().replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
           };
           
-          let userLine = `👤 **${userNumber}.**`;
+          let userLine = `ðŸ‘¤ **${userNumber}.**`;
           if (username && username !== "N/A") {
             userLine += ` ${escapeMarkdown(username)}`;
           }
-          const idLine = `🆔 ID: \`${userId}\``;
+          const idLine = `ðŸ†” ID: \`${userId}\``;
           return `${userLine}\n${idLine}`;
         }).join("\n\n");
 
         // Message dengan layout yang lebih profesional
-        const messageText = `🎯 **DAFTAR PENGGUNA**\n
-╔═══════════════════╗
-📊 **Total:** ${totalUsers} pengguna
-📄 **Halaman:** ${page + 1}/${totalPages}
-╚═══════════════════╝
+        const messageText = `ðŸŽ¯ **DAFTAR PENGGUNA**\n
+â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+ðŸ“Š **Total:** ${totalUsers} pengguna
+ðŸ“„ **Halaman:** ${page + 1}/${totalPages}
+â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 ${userListText}`;
 
@@ -1328,10 +1325,10 @@ ${userListText}`;
         const row = [];
         
         if (page > 0) {
-          row.push({ text: "⬅️ Prev", callback_data: `userlist_page_${page - 1}` });
+          row.push({ text: "â¬…ï¸ Prev", callback_data: `userlist_page_${page - 1}` });
         }
         if (page < totalPages - 1) {
-          row.push({ text: "Next ➡️", callback_data: `userlist_page_${page + 1}` });
+          row.push({ text: "Next âž¡ï¸", callback_data: `userlist_page_${page + 1}` });
         }
         
         if (row.length > 0) {
@@ -1340,7 +1337,7 @@ ${userListText}`;
 
         // Hanya tombol refresh saja
         keyboard.push([
-          { text: "🔄 Refresh", callback_data: `userlist_page_0` }
+          { text: "ðŸ”„ Refresh", callback_data: `userlist_page_0` }
         ]);
 
         await this.sendMessage(chatId, messageText, {
@@ -1359,120 +1356,6 @@ ${userListText}`;
       return new Response("OK", { status: 200 });
     }
   
-    if (text.startsWith("/converter")) {
-  await this.sendMessage(
-    chatId,
-    `🔄 *Konverter Konfigurasi Geo Project Bot*
-
-📩 **Kirimkan link konfigurasi V2Ray** dan saya akan mengubahnya ke berbagai format yang tersedia.
-
-📋 **Format yang didukung:**
-• VLESS: \`vless://...\`
-• VMess: \`vmess://...\`
-• Trojan: \`trojan://...\`
-• Shadowsocks: \`ss://...\`
-
-⚡ **Hasil konversi:**
-✅ Singbox
-✅ Nekobox  
-✅ Clash
-
-📝 **Catatan penting:**
-• Maksimal 10 link per permintaan
-• Disarankan menggunakan *Singbox versi 1.10.3* atau *1.11.8*
-• Proses konversi otomatis dan cepat
-
-🚀 **Cara penggunaan:**
-Kirim langsung link konfigurasi Anda di chat ini!`,
-    { 
-      reply_to_message_id: messageId,
-      parse_mode: "Markdown",
-      ...options
-    }
-  );
-  return new Response("OK", { status: 200 });
-}
-
-if (text.includes("://")) {
-  try {
-    const links = text.split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.includes("://"))
-      .slice(0, 10);
-    
-    if (links.length === 0) {
-      await this.sendMessage(
-        chatId, 
-        "❌ *Tidak ada link valid yang ditemukan!*\n\nSilakan kirim link dengan format:\n• VLESS: \\`vless://...\\`\n• VMess: \\`vmess://...\\`\n• Trojan: \\`trojan://...\\`\n• Shadowsocks: \\`ss://...\\`",
-        { 
-          reply_to_message_id: messageId,
-          parse_mode: "Markdown",
-          ...options
-        }
-      );
-      return new Response("OK", { status: 200 });
-    }
-
-    // Menampilkan pesan proses
-    await this.sendMessage(
-      chatId,
-      `🔄 *Memproses ${links.length} link...*\n⏳ Mohon tunggu sebentar...`,
-      { 
-        reply_to_message_id: messageId,
-        parse_mode: "Markdown",
-        ...options
-      }
-    );
-
-    const clashConfig = generateClashConfig(links, true);
-    const nekoboxConfig = generateNekoboxConfig(links, true);
-    const singboxConfig = generateSingboxConfig(links, true);
-
-    // Kirim file konfigurasi
-    await this.sendDocument(chatId, clashConfig, "config_clash.yaml", "text/yaml", { 
-      reply_to_message_id: messageId,
-      caption: "⚡ *Konfigurasi Clash*",
-      ...options
-    });
-    
-    await this.sendDocument(chatId, nekoboxConfig, "config_nekobox.json", "application/json", { 
-      reply_to_message_id: messageId,
-      caption: "📱 *Konfigurasi Nekobox*",
-      ...options
-    });
-    
-    await this.sendDocument(chatId, singboxConfig, "config_singbox.json", "application/json", { 
-      reply_to_message_id: messageId,
-      caption: "🎯 *Konfigurasi Singbox*",
-      ...options
-    });
-
-    // Pesan sukses
-    await this.sendMessage(
-      chatId,
-      `✅ *Konversi Berhasil!*\n\n📦 **${links.length} link** telah dikonversi ke 3 format berbeda:\n\n• 🎯 Singbox\n• 📱 Nekobox\n• ⚡ Clash\n\n🚀 **Selamat menikmati!**`,
-      { 
-        reply_to_message_id: messageId,
-        parse_mode: "Markdown",
-        ...options
-      }
-    );
-
-  } catch (error) {
-    console.error("Error processing links:", error);
-    await this.sendMessage(
-      chatId, 
-      `❌ *Terjadi Kesalahan!*\n\nError: ${error.message}\n\nPastikan link yang dikirim dalam format yang benar dan coba lagi.`,
-      { 
-        reply_to_message_id: messageId,
-        parse_mode: "Markdown",
-        ...options
-      }
-    );
-  }
-}
-return new Response("OK", { status: 200 });
-    }
     
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
@@ -1979,14 +1862,14 @@ function buildCountryButtons(page = 0, pageSize = 15) {
     const navButtons = [];
     if (page > 0) {
         navButtons.push({ 
-            text: "◀️ Prev", 
+            text: "â—€ï¸ Prev", 
             callback_data: `randomip_page_${page - 1}` 
         });
     }
     
     if (end < globalCountryCodes.length) {
         navButtons.push({ 
-            text: "Next ▶️", 
+            text: "Next â–¶ï¸", 
             callback_data: `randomip_page_${page + 1}` 
         });
     }
@@ -2003,13 +1886,13 @@ function generateCountryIPsMessage(ipList, countryCode) {
     const filteredIPs = ipList.filter((line) => line.split(",")[2] === countryCode);
     if (filteredIPs.length === 0) return null;
     
-    let msg = `🌍 *Proxy IP untuk negara ${countryCode} ${getFlagEmoji(countryCode)}:*\n\n`;
+    let msg = `ðŸŒ *Proxy IP untuk negara ${countryCode} ${getFlagEmoji(countryCode)}:*\n\n`;
     
     filteredIPs.slice(0, 20).forEach((line) => {
         const [ip, port, _code, isp] = line.split(",");
-        msg += `📍 *IP:PORT* : \`${ip}:${port}\`\n`;
-        msg += `🌍 *Country* : ${_code} ${getFlagEmoji(_code)}\n`;
-        msg += `💻 *ISP* : ${isp}\n\n`;
+        msg += `ðŸ“ *IP:PORT* : \`${ip}:${port}\`\n`;
+        msg += `ðŸŒ *Country* : ${_code} ${getFlagEmoji(_code)}\n`;
+        msg += `ðŸ’» *ISP* : ${isp}\n\n`;
     });
     
     return msg;
@@ -2024,7 +1907,7 @@ async function handleRandomIpCommand(bot, chatId, options) {
         
         if (globalIpList.length === 0) {
             await bot.sendMessage(chatId, 
-                "❌ *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*", 
+                "âŒ *Daftar IP kosong atau tidak ditemukan. Coba lagi nanti.*", 
                 { parse_mode: "Markdown", ...options }
             );
             return;
@@ -2050,7 +1933,7 @@ async function handleRandomIpCommand(bot, chatId, options) {
             await bot.deleteMessage(chatId, messageIdToDelete);
         }
         await bot.sendMessage(chatId, 
-            `⚠️ Gagal mengambil data IP: ${error.message}`,
+            `âš ï¸ Gagal mengambil data IP: ${error.message}`,
             options
         );
     }
@@ -2082,7 +1965,7 @@ async function handleCallbackQuery(bot, callbackQuery, options) {
 
         if (!msg) {
             await bot.sendMessage(chatId,
-                `❌ Tidak ditemukan IP untuk negara: ${code}`,
+                `âŒ Tidak ditemukan IP untuk negara: ${code}`,
                 { parse_mode: "Markdown", ...options }
             );
         } else {
@@ -2099,7 +1982,7 @@ async function handleCallbackQuery(bot, callbackQuery, options) {
 
         if (!msg) {
             await bot.sendMessage(chatId,
-                `❌ Tidak ditemukan IP untuk negara: ${code}`,
+                `âŒ Tidak ditemukan IP untuk negara: ${code}`,
                 { parse_mode: "Markdown", ...options }
             );
         } else {
@@ -2215,11 +2098,11 @@ const TelegramBotku = class {
 
         if (text === '/ping') {
             const delay = Date.now() - (update.message.date * 1000);
-            const firstMessage = 'Pong!🏓';
+            const firstMessage = 'Pong!ðŸ“';
             const secondMessage = 'Latency: ' + delay + 'ms';
             const replyMarkup = {
                 inline_keyboard: [
-                    [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
+                    [{ text: "ðŸ“ž Hubungi Developer", url: "https://t.me/sampiiiiu" }]
                 ]
             };
             await this.sendMessage(chatId, firstMessage, { ...options });
@@ -2233,12 +2116,12 @@ const TelegramBotku = class {
 
     if (!number) {
         await this.sendMessage(chatId, 
-            "📱 *CEK KUOTA PAKET DATA*\n\n" +
-            "ℹ️ *Cara Penggunaan:*\n" +
+            "ðŸ“± *CEK KUOTA PAKET DATA*\n\n" +
+            "â„¹ï¸ *Cara Penggunaan:*\n" +
             "`/kuota <nomor_hp>`\n\n" +
-            "✨ *Contoh:*\n" +
+            "âœ¨ *Contoh:*\n" +
             "`/kuota 087812345678`\n\n" +
-            "📝 *Pastikan nomor sudah terdaftar di operator*",
+            "ðŸ“ *Pastikan nomor sudah terdaftar di operator*",
             { 
                 parse_mode: "Markdown",
                 ...options 
@@ -2251,10 +2134,10 @@ const TelegramBotku = class {
     const phoneRegex = /^08[1-9][0-9]{7,10}$/;
     if (!phoneRegex.test(number)) {
         await this.sendMessage(chatId,
-            "❌ *FORMAT NOMOR TIDAK VALID*\n\n" +
+            "âŒ *FORMAT NOMOR TIDAK VALID*\n\n" +
             "Format yang benar:\n" +
-            "• 08xxxxxxxxxx\n" +
-            "• 10-13 digit angka\n\n" +
+            "â€¢ 08xxxxxxxxxx\n" +
+            "â€¢ 10-13 digit angka\n\n" +
             "Contoh: `087812345678`",
             { 
                 parse_mode: "Markdown",
@@ -2265,9 +2148,9 @@ const TelegramBotku = class {
     }
 
     const loadingMessage = await this.sendMessage(chatId, 
-        "🔄 *Mengecek Kuota...*\n\n" +
-        `📞 Nomor: \`${number}\`\n` +
-        "⏳ Mohon tunggu sebentar...",
+        "ðŸ”„ *Mengecek Kuota...*\n\n" +
+        `ðŸ“ž Nomor: \`${number}\`\n` +
+        "â³ Mohon tunggu sebentar...",
         { 
             parse_mode: "Markdown",
             ...options 
@@ -2292,9 +2175,9 @@ const TelegramBotku = class {
                 // Simulasi struktur data dengan loop
                 const lines = resultText.split('\n');
                 let formattedMessage = 
-                    "📊 *INFORMASI KUOTA PAKET DATA*\n\n" +
-                    `📱 *Nomor:* \`${number}\`\n` +
-                    "━━━━━━━━━━━━━━━━━━━━\n\n";
+                    "ðŸ“Š *INFORMASI KUOTA PAKET DATA*\n\n" +
+                    `ðŸ“± *Nomor:* \`${number}\`\n` +
+                    "â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n\n";
                 
                 // Proses setiap baris dengan gaya loop
                 if (lines?.length) {
@@ -2304,24 +2187,24 @@ const TelegramBotku = class {
                             
                             // Format khusus untuk bagian penting
                             if (trimmedLine.includes('SISA PULSA')) {
-                                formattedMessage += `💵 *${trimmedLine}*\n`;
+                                formattedMessage += `ðŸ’µ *${trimmedLine}*\n`;
                             } else if (trimmedLine.includes('SISA KUOTA')) {
-                                formattedMessage += `📦 *${trimmedLine}*\n`;
+                                formattedMessage += `ðŸ“¦ *${trimmedLine}*\n`;
                             } else if (trimmedLine.includes('MASA AKTIF')) {
-                                formattedMessage += `⏰ *${trimmedLine}*\n`;
+                                formattedMessage += `â° *${trimmedLine}*\n`;
                             } else if (trimmedLine.includes(':')) {
                                 const [key, value] = trimmedLine.split(':');
-                                formattedMessage += `• *${key.trim()}:* \`${value?.trim() || 'Tidak tersedia'}\`\n`;
+                                formattedMessage += `â€¢ *${key.trim()}:* \`${value?.trim() || 'Tidak tersedia'}\`\n`;
                             } else {
-                                formattedMessage += `📌 ${trimmedLine}\n`;
+                                formattedMessage += `ðŸ“Œ ${trimmedLine}\n`;
                             }
                         }
                     }
                 }
                 
-                formattedMessage += "\n━━━━━━━━━━━━━━━━━━━━\n" +
-                    `🕐 *Update:* ${new Date().toLocaleString('id-ID')}\n` +
-                    "💡 *Info:* Data mungkin tertunda beberapa menit";
+                formattedMessage += "\nâ”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n" +
+                    `ðŸ• *Update:* ${new Date().toLocaleString('id-ID')}\n` +
+                    "ðŸ’¡ *Info:* Data mungkin tertunda beberapa menit";
                 
                 await this.sendMessage(chatId, formattedMessage, { 
                     parse_mode: "Markdown",
@@ -2342,15 +2225,15 @@ const TelegramBotku = class {
                 
                 if (errorData?.success === false) {
                     let errorMessage = 
-                        "❌ *GAGAL MENGAMBIL DATA*\n\n" +
-                        `📱 Nomor: \`${number}\`\n\n` +
-                        "⚠️ *Kemungkinan penyebab:*\n";
+                        "âŒ *GAGAL MENGAMBIL DATA*\n\n" +
+                        `ðŸ“± Nomor: \`${number}\`\n\n` +
+                        "âš ï¸ *Kemungkinan penyebab:*\n";
                     
                     for (const cause of errorData.possibleCauses) {
-                        errorMessage += `• ${cause}\n`;
+                        errorMessage += `â€¢ ${cause}\n`;
                     }
                     
-                    errorMessage += `\n📝 *Pesan Error:* ${errorData.message}`;
+                    errorMessage += `\nðŸ“ *Pesan Error:* ${errorData.message}`;
                     
                     await this.sendMessage(chatId, errorMessage, { 
                         parse_mode: "Markdown",
@@ -2366,12 +2249,12 @@ const TelegramBotku = class {
             ];
             
             let errorMessage = 
-                "❌ *RESPONS TIDAK VALID*\n\n" +
+                "âŒ *RESPONS TIDAK VALID*\n\n" +
                 "Terjadi kesalahan dalam memproses data.\n\n" +
-                "🔧 *Kemungkinan masalah:*\n";
+                "ðŸ”§ *Kemungkinan masalah:*\n";
             
             for (const errorCase of errorCases) {
-                errorMessage += `• ${errorCase}\n`;
+                errorMessage += `â€¢ ${errorCase}\n`;
             }
             
             errorMessage += "\nSilakan coba beberapa saat lagi";
@@ -2389,15 +2272,15 @@ const TelegramBotku = class {
         ];
         
         let errorMessage = 
-            "❌ *KONEKSI GAGAL*\n\n" +
+            "âŒ *KONEKSI GAGAL*\n\n" +
             "Tidak dapat terhubung ke server.\n\n" +
-            "🔧 *Kemungkinan penyebab:*\n";
+            "ðŸ”§ *Kemungkinan penyebab:*\n";
         
         for (const error of fetchErrors) {
-            errorMessage += `• ${error}\n`;
+            errorMessage += `â€¢ ${error}\n`;
         }
         
-        errorMessage += `\n📝 *Detail Error:* ${fetchError.message}`;
+        errorMessage += `\nðŸ“ *Detail Error:* ${fetchError.message}`;
         
         await this.sendMessage(chatId, errorMessage, { 
             parse_mode: "Markdown",
@@ -2414,35 +2297,35 @@ const TelegramBotku = class {
         if (text === "/menu") {
             const menuText = `
   
-╭─── • 𝗚𝗘𝗢 𝗕𝗢𝗧 𝗦𝗘𝗥𝗩𝗘𝗥 • ───╮
-│
-├─ 🌟 *Fitur Utama*
-│  ├─ /proxyip ─ Config acak by Flag
-│  ├─ /randomconfig ─ Config acak mix
-│  ├─ /converter ─ Convert Akun V2ray
-│  ├─ /config ─ Config auto-rotate
-│  └─/sublink ─ Generate Akun V2ray
-│
-├─ 🛠️ *Tools & Info*
-│  ├─ /proxy ─ Generate Proxy IPs
-│  ├─ /stats ─ Statistik Penggunaan
-│  ├─ /findproxy ─ Tutorial Cari Proxy
-│  ├─ /userlist ─ Daftar Pengguna Bot
-│  ├─ /ping ─ Cek status bot
-│  └─ /kuota ─ Cek Data Paket XL
-│
-├─ 👤 *Manajemen Wildcard*
-│  ├─ /add \\\`[bug]\\\` ─ Tambah Wildcard
-│  ├─ /del \\\`[bug]\\\` ─ Hapus Wildcard (Admin)
-│  └─ /list ─ Daftar Wildcard
-│
-├─ 📣 *Admin*
-│  └─ /broadcast \\\`[teks]\\\` ─ Kirim Pesan
-│
-├─ ❤️ *Dukungan*
-│  └─ /donate ─ Bantu Kopi Admin
-│
-╰─── •「 @sampiiiiu 」• ───╯
+â•­â”€â”€â”€ â€¢ ð—šð—˜ð—¢ ð—•ð—¢ð—§ ð—¦ð—˜ð—¥ð—©ð—˜ð—¥ â€¢ â”€â”€â”€â•®
+â”‚
+â”œâ”€ ðŸŒŸ *Fitur Utama*
+â”‚  â”œâ”€ /proxyip â”€ Config acak by Flag
+â”‚  â”œâ”€ /randomconfig â”€ Config acak mix
+â”‚  â”œâ”€ /converter â”€ Convert Akun V2ray
+â”‚  â”œâ”€ /config â”€ Config auto-rotate
+â”‚  â””â”€/sublink â”€ Generate Akun V2ray
+â”‚
+â”œâ”€ ðŸ› ï¸ *Tools & Info*
+â”‚  â”œâ”€ /proxy â”€ Generate Proxy IPs
+â”‚  â”œâ”€ /stats â”€ Statistik Penggunaan
+â”‚  â”œâ”€ /findproxy â”€ Tutorial Cari Proxy
+â”‚  â”œâ”€ /userlist â”€ Daftar Pengguna Bot
+â”‚  â”œâ”€ /ping â”€ Cek status bot
+â”‚  â””â”€ /kuota â”€ Cek Data Paket XL
+â”‚
+â”œâ”€ ðŸ‘¤ *Manajemen Wildcard*
+â”‚  â”œâ”€ /add \\\`[bug]\\\` â”€ Tambah Wildcard
+â”‚  â”œâ”€ /del \\\`[bug]\\\` â”€ Hapus Wildcard (Admin)
+â”‚  â””â”€ /list â”€ Daftar Wildcard
+â”‚
+â”œâ”€ ðŸ“£ *Admin*
+â”‚  â””â”€ /broadcast \\\`[teks]\\\` â”€ Kirim Pesan
+â”‚
+â”œâ”€ â¤ï¸ *Dukungan*
+â”‚  â””â”€ /donate â”€ Bantu Kopi Admin
+â”‚
+â•°â”€â”€â”€ â€¢ã€Œ @sampiiiiu ã€â€¢ â”€â”€â”€â•¯
 
 `;
   await this.sendMessage(chatId, menuText, { parse_mode: "Markdown", ...options });
@@ -2543,36 +2426,36 @@ if (text === "/donate") {
     try {
         await this.sendPhoto(chatId, imageUrl, {
             caption: `
-💝 *Dukung Pengembangan Bot!* 💝
+ðŸ’ *Dukung Pengembangan Bot!* ðŸ’
 
 Bantu kami terus berkembang dengan scan QRIS di atas!
 
-✨ *Fitur yang akan datang:*
-• Server yang lebih cepat
-• Lebih banyak negara proxy
-• Fitur premium eksklusif
-• Update rutin dan perbaikan bug
+âœ¨ *Fitur yang akan datang:*
+â€¢ Server yang lebih cepat
+â€¢ Lebih banyak negara proxy
+â€¢ Fitur premium eksklusif
+â€¢ Update rutin dan perbaikan bug
 
-Terima kasih atas dukungannya! 🙏
+Terima kasih atas dukungannya! ðŸ™
 
-_— Tim GEO BOT SERVER_
+_â€” Tim GEO BOT SERVER_
 `.trim(),
             parse_mode: "Markdown",
             reply_markup: {
                 inline_keyboard: [
                     [
                         { 
-                            text: "🌐 GEO PROJECT", 
+                            text: "ðŸŒ GEO PROJECT", 
                             url: "https://t.me/sampiiiiu" 
                         },
                         { 
-                            text: "⭐ Beri Rating", 
+                            text: "â­ Beri Rating", 
                             url: "https://t.me/sampiiiiu" 
                         }
                     ],
                     [
                         { 
-                            text: "💬 Channel Update", 
+                            text: "ðŸ’¬ Channel Update", 
                             url: "https://t.me/sampiiiiu" 
                         }
                     ]
@@ -2582,13 +2465,13 @@ _— Tim GEO BOT SERVER_
         });
         
     } catch (error) {
-        console.error("❌ Error sending donation photo:", error);
+        console.error("âŒ Error sending donation photo:", error);
         // Fallback to text message if image fails
         await this.sendMessage(chatId, 
-            `💝 *Dukung Pengembangan Bot!*\n\n` +
+            `ðŸ’ *Dukung Pengembangan Bot!*\n\n` +
             `Bantu kami terus berkembang dengan donasi melalui QRIS.\n\n` +
-            `Terima kasih atas dukungannya! 🙏\n\n` +
-            `🌐 [GEO PROJECT](https://t.me/sampiiiiu)`,
+            `Terima kasih atas dukungannya! ðŸ™\n\n` +
+            `ðŸŒ [GEO PROJECT](https://t.me/sampiiiiu)`,
             { parse_mode: "Markdown", ...options }
         );
     }
@@ -2606,7 +2489,7 @@ _— Tim GEO BOT SERVER_
       const tenDaysAgo = getTenDaysAgoDate();
       const loadingMsg = await this.sendMessage(
         chatId,
-        "📊 *Mengambil data statistik untuk semua zona...*",
+        "ðŸ“Š *Mengambil data statistik untuk semua zona...*",
         { parse_mode: "Markdown", ...options }
       );
       const messageIdToDelete = loadingMsg?.result?.message_id;
@@ -2651,7 +2534,7 @@ _— Tim GEO BOT SERVER_
           await this.editMessageText(
             chatId,
             loadingMsg.message_id,
-            "📊 *Tidak ada data pemakaian untuk 10 hari terakhir di semua zona.*",
+            "ðŸ“Š *Tidak ada data pemakaian untuk 10 hari terakhir di semua zona.*",
             { parse_mode: "Markdown" }
           );
           return new Response("OK", { status: 200 });
@@ -2676,14 +2559,14 @@ _— Tim GEO BOT SERVER_
           totalBandwidth += day.sum.bytes;
           totalRequests += day.sum.requests;
         });
-        let usageText = `📊 *STATISTIK PENGGUNAAN SERVER (SEMUA ZONA)*\n\n`;
-        usageText += `⏰ **Periode:** 10 Hari Terakhir\n`;
-        usageText += `📅 **Dari:** ${tenDaysAgo} hingga ${new Date().toISOString().split("T")[0]}\n\n`;
-        usageText += `📈 **TOTAL KESELURUHAN:**\n`;
-        usageText += `   ┣ 📊 Total Requests: ${totalRequests.toLocaleString()}\n`;
-        usageText += `   ┗ 💾 Total Bandwidth: ${(totalBandwidth / 1024 ** 3).toFixed(2)} GB\n\n`;
-        usageText += `📋 **RINCIAN HARIAN:**\n`;
-        usageText += "┌─────────────────────────────────┐\n";
+        let usageText = `ðŸ“Š *STATISTIK PENGGUNAAN SERVER (SEMUA ZONA)*\n\n`;
+        usageText += `â° **Periode:** 10 Hari Terakhir\n`;
+        usageText += `ðŸ“… **Dari:** ${tenDaysAgo} hingga ${new Date().toISOString().split("T")[0]}\n\n`;
+        usageText += `ðŸ“ˆ **TOTAL KESELURUHAN:**\n`;
+        usageText += `   â”£ ðŸ“Š Total Requests: ${totalRequests.toLocaleString()}\n`;
+        usageText += `   â”— ðŸ’¾ Total Bandwidth: ${(totalBandwidth / 1024 ** 3).toFixed(2)} GB\n\n`;
+        usageText += `ðŸ“‹ **RINCIAN HARIAN:**\n`;
+        usageText += "â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”\n";
         dailyData.forEach((day, index) => {
           const tanggal = new Date(day.dimensions.date).toLocaleDateString("id-ID", {
             day: "2-digit",
@@ -2692,24 +2575,24 @@ _— Tim GEO BOT SERVER_
           });
           const totalData = (day.sum.bytes / 1024 ** 3).toFixed(2);
           const totalRequests2 = day.sum.requests.toLocaleString();
-          usageText += `│ 📅 ${tanggal}\n`;
-          usageText += `│ ├─ 📨 Requests: ${totalRequests2}\n`;
-          usageText += `│ └─ 💾 Bandwidth: ${totalData} GB\n`;
+          usageText += `â”‚ ðŸ“… ${tanggal}\n`;
+          usageText += `â”‚ â”œâ”€ ðŸ“¨ Requests: ${totalRequests2}\n`;
+          usageText += `â”‚ â””â”€ ðŸ’¾ Bandwidth: ${totalData} GB\n`;
           if (index < dailyData.length - 1) {
-            usageText += "│ ───────────────────────────────\n";
+            usageText += "â”‚ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n";
           }
         });
-        usageText += "└─────────────────────────────────┘\n\n";
-        usageText += `💡 *Info:* Data diperbarui secara real-time dari Cloudflare Analytics`;
+        usageText += "â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜\n\n";
+        usageText += `ðŸ’¡ *Info:* Data diperbarui secara real-time dari Cloudflare Analytics`;
         await this.sendMessage(chatId, usageText, {
           parse_mode: "Markdown",
           ...options
         });
       } catch (error) {
-        console.error("❌ Error fetching stats:", error);
+        console.error("âŒ Error fetching stats:", error);
         await this.sendMessage(
           chatId,
-          `❌ *Gagal mengambil data statistik*\n\n_Error:_ \`${error.message}\`\n\nPastikan API token dan Zone ID masih valid.`,
+          `âŒ *Gagal mengambil data statistik*\n\n_Error:_ \`${error.message}\`\n\nPastikan API token dan Zone ID masih valid.`,
           { parse_mode: "Markdown", ...options }
         );
       } finally {
@@ -2723,41 +2606,41 @@ _— Tim GEO BOT SERVER_
     if (text === "/start") {
         await this.sendPhoto(chatId, "https://github.com/jaka8m/BOT-CONVERTER/raw/main/start.png", {
             caption: `
-✨━━━━━━━━━━━━━━━━━✨
-🌟 **Welcome to Geo Bot Server!** 🌟
-✨━━━━━━━━━━━━━━━━━✨
+âœ¨â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”âœ¨
+ðŸŒŸ **Welcome to Geo Bot Server!** ðŸŒŸ
+âœ¨â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”âœ¨
 
-🤖 *Tentang Bot:*
+ðŸ¤– *Tentang Bot:*
 Bot ini dirancang untuk membantu Anda memeriksa status proxy dan membuat konfigurasi V2Ray dengan mudah.
 
-📋 *Cara Penggunaan:*
-1️⃣ Kirim alamat IP dan port (opsional, default: 443)
-2️⃣ Tunggu beberapa detik untuk proses pengecekan
-3️⃣ Dapatkan hasil status dan konfigurasi
+ðŸ“‹ *Cara Penggunaan:*
+1ï¸âƒ£ Kirim alamat IP dan port (opsional, default: 443)
+2ï¸âƒ£ Tunggu beberapa detik untuk proses pengecekan
+3ï¸âƒ£ Dapatkan hasil status dan konfigurasi
 
-🔧 *Format Input yang Diterima:*
-• \`176.97.78.80\`
-• \`176.97.78.80:2053\`
+ðŸ”§ *Format Input yang Diterima:*
+â€¢ \`176.97.78.80\`
+â€¢ \`176.97.78.80:2053\`
 
-📂 *Perintah Lainnya:*
+ðŸ“‚ *Perintah Lainnya:*
 Ketik \`/menu\` untuk melihat semua perintah yang tersedia.
 
-⚠️ *Penting:*
+âš ï¸ *Penting:*
 - Jika status proxy *DEAD*, konfigurasi tidak akan dibuat
 - Pastikan format input sesuai untuk hasil terbaik
 
-🔗 *Tautan Terkait:*
-🌐 [WEB VPN TUNNEL](https://joss.krekkrek.web.id)
-📺 [CHANNEL VPS & Script](https://t.me/testikuy_mang)
-👥 [GRUP PHREAKER](https://t.me/+Q1ARd8ZsAuM2xB6-)
-✨━━━━━━━━━━━━━━━━━✨
+ðŸ”— *Tautan Terkait:*
+ðŸŒ [WEB VPN TUNNEL](https://joss.krekkrek.web.id)
+ðŸ“º [CHANNEL VPS & Script](https://t.me/testikuy_mang)
+ðŸ‘¥ [GRUP PHREAKER](https://t.me/+Q1ARd8ZsAuM2xB6-)
+âœ¨â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”âœ¨
 
-*Terima kasih telah menggunakan layanan kami!* 🚀
+*Terima kasih telah menggunakan layanan kami!* ðŸš€
 `.trim(),
             parse_mode: "Markdown",
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
+                    [{ text: "ðŸ“ž Hubungi Developer", url: "https://t.me/sampiiiiu" }]
                 ]
             },
             ...options
@@ -2945,7 +2828,7 @@ function toBase64(str) {
 __name(toBase64, "toBase64");
 function generateConfig(config, protocol, wildcardKey = null, globalBot) {
   if (!config || !config.ip || !config.port || !config.isp) {
-    return "❌ Data tidak valid!";
+    return "âŒ Data tidak valid!";
   }
   const DEFAULT_HOST = globalBot.getRandomHost();
   const host = wildcardKey ? `${WILDCARD_MAP[wildcardKey]}.${DEFAULT_HOST}` : DEFAULT_HOST;
@@ -3064,7 +2947,7 @@ Please wait while it is being processed...
 `, options);
       const data = await fetchIPData(ip, port);
       if (!data) {
-        await this.editMessage(chatId, loadingMsg.result.message_id, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
+        await this.editMessage(chatId, loadingMsg.result.message_id, `âŒ Gagal mengambil data untuk IP ${ip}:${port}`, options);
         return new Response("OK", { status: 200 });
       }
       const { isp, country, delay, status } = data;
@@ -3092,7 +2975,7 @@ Pilih protokol:`;
       const parts = data.split("|");
       if (parts[0] === "PROTOCOL") {
         const [_, protocol, ip, port] = parts;
-        await this.editMessage(chatId, messageId, ` ⚙️Opsi wildcard untuk ${protocol}`, {
+        await this.editMessage(chatId, messageId, ` âš™ï¸Opsi wildcard untuk ${protocol}`, {
           reply_markup: createInitialWildcardInlineKeyboard(ip, port, protocol), ...options
         });
         return new Response("OK", { status: 200 });
@@ -3114,7 +2997,7 @@ Please wait while it is being processed...
 `, options);
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
+          await this.editMessage(chatId, messageId, `âŒ Gagal mengambil data untuk IP ${ip}:${port}`, options);
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
@@ -3143,7 +3026,7 @@ Please wait while it is being processed...
 `, options);
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
+          await this.editMessage(chatId, messageId, `âŒ Gagal mengambil data untuk IP ${ip}:${port}`, options);
           await this.deleteMessage(chatId, loadingMsg.result.message_id);
           return new Response("OK", { status: 200 });
         }
@@ -3166,7 +3049,7 @@ ${configText}
         const [_, ip, port] = parts;
         const dataInfo = await fetchIPData(ip, port);
         if (!dataInfo) {
-          await this.editMessage(chatId, messageId, `❌ Gagal mengambil data untuk IP ${ip}:${port}`, options);
+          await this.editMessage(chatId, messageId, `âŒ Gagal mengambil data untuk IP ${ip}:${port}`, options);
           return new Response("OK", { status: 200 });
         }
         const infoText = `\`\`\`INFORMATION
@@ -3824,7 +3707,7 @@ class TelegramWildcardBot {
     
     // Handle /listdom command
     if (text.startsWith("/listdom")) {
-      const loadingMessage = await this.sendMessage(chatId, "🔍 *Memeriksa domain, mohon tunggu...*", { parse_mode: "Markdown", ...options });
+      const loadingMessage = await this.sendMessage(chatId, "ðŸ” *Memeriksa domain, mohon tunggu...*", { parse_mode: "Markdown", ...options });
       const messageIdToEdit = loadingMessage.result.message_id;
 
       try {
@@ -3838,18 +3721,18 @@ class TelegramWildcardBot {
           try {
             const response = await fetch(`https://${domain}`, { method: 'HEAD', redirect: 'manual' });
             if (response.status >= 200 && response.status < 300) {
-              return `✅ \`${domain}\` - Active`;
+              return `âœ… \`${domain}\` - Active`;
             } else if (response.status >= 300 && response.status < 400) {
-              return `↪️ \`${domain}\` - Redirect`;
+              return `â†ªï¸ \`${domain}\` - Redirect`;
             } else if (response.status === 1027) {
-              return `🔒 \`${domain}\` - Limit`;
+              return `ðŸ”’ \`${domain}\` - Limit`;
             } else if (response.status === 1101) {
-                return `❗️ \`${domain}\` - Error`;
+                return `â—ï¸ \`${domain}\` - Error`;
             } else {
-              return `⚠️ \`${domain}\` - Error ${response.status}`;
+              return `âš ï¸ \`${domain}\` - Error ${response.status}`;
             }
           } catch (error) {
-            return `❌ \`${domain}\` - Dead/tidak valid`;
+            return `âŒ \`${domain}\` - Dead/tidak valid`;
           }
         };
 
@@ -3863,7 +3746,7 @@ class TelegramWildcardBot {
         }
 
         const resultText = results.join("\n");
-        const message = `🔍 **Hasil Pengecekan Domain:**\n\n${resultText}\n\n**Keterangan:**\n✅ = Domain aktif\n↪️ = Redirect\n🔒 = Limit\n❗️ = Error\n⚠️ = Masalah Lain\n❌ = Dead/tidak valid`;
+        const message = `ðŸ” **Hasil Pengecekan Domain:**\n\n${resultText}\n\n**Keterangan:**\nâœ… = Domain aktif\nâ†ªï¸ = Redirect\nðŸ”’ = Limit\nâ—ï¸ = Error\nâš ï¸ = Masalah Lain\nâŒ = Dead/tidak valid`;
 
         await this.editMessage(chatId, messageIdToEdit, message, { parse_mode: "Markdown", ...options });
 
@@ -3889,7 +3772,7 @@ class TelegramWildcardBot {
         
         await this.sendMessage(
           chatId,
-          `📋 LIST WILDCARD BUG :\n\n${listText}\n\n📊 Total: ${domains.length} Wildcard${domains.length > 1 ? "s" : ""}`,
+          `ðŸ“‹ LIST WILDCARD BUG :\n\n${listText}\n\nðŸ“Š Total: ${domains.length} Wildcard${domains.length > 1 ? "s" : ""}`,
           options
         );
         
@@ -3923,10 +3806,10 @@ class TelegramWildcardBot {
         
         if (st === 200) {
           this.globalBot.updateRequestStatus(sd, "approved");
-          await this.sendMessage(chatId, `✅ Wildcard ${full} disetujui dan ditambahkan.`, options);
-          await this.sendMessage(req.requesterId, `✅ Permintaan Wildcard ${full} Anda telah disetujui pada:\n${now}`);
+          await this.sendMessage(chatId, `âœ… Wildcard ${full} disetujui dan ditambahkan.`, options);
+          await this.sendMessage(req.requesterId, `âœ… Permintaan Wildcard ${full} Anda telah disetujui pada:\n${now}`);
         } else {
-          await this.sendMessage(chatId, `❌ Gagal menambahkan domain ${full}, status: ${st}`, options);
+          await this.sendMessage(chatId, `âŒ Gagal menambahkan domain ${full}, status: ${st}`, options);
         }
       }
       
@@ -3950,8 +3833,8 @@ class TelegramWildcardBot {
         await this.sendMessage(chatId, `Tidak ada request pending untuk subdomain ${full}.`, options);
       } else {
         this.globalBot.updateRequestStatus(sd, "rejected");
-        await this.sendMessage(chatId, `❌ Wildcard ${full} telah ditolak.`, options);
-        await this.sendMessage(req.requesterId, `❌ Permintaan Wildcard ${full} Anda telah ditolak pada:\n${now}`);
+        await this.sendMessage(chatId, `âŒ Wildcard ${full} telah ditolak.`, options);
+        await this.sendMessage(req.requesterId, `âŒ Permintaan Wildcard ${full} Anda telah ditolak pada:\n${now}`);
       }
       
       return new Response("OK", { status: 200 });
@@ -3977,12 +3860,12 @@ class TelegramWildcardBot {
           const requesterId = r.requesterId.toString();
           const time = r.requestTime;
           
-          lines += `${i + 1}. ${domain} — ${status}\n`;
-          lines += `   👤 requester: @${requester} (ID: ${requesterId})\n`;
-          lines += `   🕒 waktu: ${time}\n\n`;
+          lines += `${i + 1}. ${domain} â€” ${status}\n`;
+          lines += `   ðŸ‘¤ requester: @${requester} (ID: ${requesterId})\n`;
+          lines += `   ðŸ•’ waktu: ${time}\n\n`;
         });
         
-        const message = `📋 Daftar Semua Request:\n\n${lines}`;
+        const message = `ðŸ“‹ Daftar Semua Request:\n\n${lines}`;
         await this.sendMessage(chatId, message, options);
       }
       
@@ -4371,17 +4254,17 @@ const SublinkBuilderBot = class {
             countryDisplay = state.country.toUpperCase();
           }
 
-          const caption = `🔗 <b>Sub Link Berhasil Dibuat!</b>
+          const caption = `ðŸ”— <b>Sub Link Berhasil Dibuat!</b>
 
-📱 <b>Aplikasi:</b> <code>${state.app}</code>
-🔧 <b>Tipe:</b> <code>${state.type}</code>
-🐛 <b>Bug:</b> <code>${state.bug}</code>
-🔒 <b>TLS:</b> <code>${state.tls}</code>
-🎯 <b>Wildcard:</b> <code>${state.wildcard}</code>
-📊 <b>Limit:</b> <code>${state.limit}</code>
-🌍 <b>Country:</b> <code>${countryDisplay}</code>
+ðŸ“± <b>Aplikasi:</b> <code>${state.app}</code>
+ðŸ”§ <b>Tipe:</b> <code>${state.type}</code>
+ðŸ› <b>Bug:</b> <code>${state.bug}</code>
+ðŸ”’ <b>TLS:</b> <code>${state.tls}</code>
+ðŸŽ¯ <b>Wildcard:</b> <code>${state.wildcard}</code>
+ðŸ“Š <b>Limit:</b> <code>${state.limit}</code>
+ðŸŒ <b>Country:</b> <code>${countryDisplay}</code>
 
-👇 <b>Klik link di bawah untuk copy:</b>
+ðŸ‘‡ <b>Klik link di bawah untuk copy:</b>
 <a href="${url}">${url}</a>`;
           
           // Hapus pesan "Sedang memproses permintaan Anda..."
@@ -4400,7 +4283,7 @@ const SublinkBuilderBot = class {
           await this.deleteMessage(chatId, state.processingMessageId);
           
           // Kirim pesan error
-          await this.sendMessage(chatId, `❌ <b>Terjadi Kesalahan</b>\n\n${error.message}\n\nSilakan coba lagi dengan parameter yang berbeda.`, {
+          await this.sendMessage(chatId, `âŒ <b>Terjadi Kesalahan</b>\n\n${error.message}\n\nSilakan coba lagi dengan parameter yang berbeda.`, {
             parse_mode: "HTML",
             ...options
           });
