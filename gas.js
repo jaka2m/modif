@@ -1144,175 +1144,52 @@ const Converterbot = class {
     
     await this.addUserToKv(update.message.from);
 
-    if (chatId.toString() === this.ownerId.toString() && text.startsWith("/broadcast")) {
-      const broadcastCaption = text.substring("/broadcast".length).trim();
-      
-      if (reply) {
-        if (reply.photo) {
-          const file_id = reply.photo[reply.photo.length - 1].file_id;
-          const formattedCaption = this.formatMediaCaption(broadcastCaption, 'photo');
-          await this.sendBroadcastPhoto(file_id, formattedCaption);
-        } else if (reply.video) {
-          const file_id = reply.video.file_id;
-          const formattedCaption = this.formatMediaCaption(broadcastCaption, 'video');
-          await this.sendBroadcastVideo(file_id, formattedCaption);
-        }
-      } else if (update.message.photo) {
-        const file_id = update.message.photo[update.message.photo.length - 1].file_id;
-        const formattedCaption = this.formatMediaCaption(caption.substring("/broadcast".length).trim(), 'photo');
-        await this.sendBroadcastPhoto(file_id, formattedCaption);
-      } else if (update.message.video) {
-        const file_id = update.message.video.file_id;
-        const formattedCaption = this.formatMediaCaption(caption.substring("/broadcast".length).trim(), 'video');
-        await this.sendBroadcastVideo(file_id, formattedCaption);
-      } else if (broadcastCaption) {
-        const formattedMessage = this.formatBroadcastMessage(broadcastCaption, 'text');
-        await this.sendBroadcastMessage(formattedMessage);
-      } else {
-        const helpMessage = `📝 *CARA MENGGUNAKAN BROADCAST*\n\n` +
-          `• *Broadcast Teks:*\n\`/broadcast Pesan teks Anda\`\n\n` +
-          `• *Broadcast Gambar/Video:*\nBalas gambar/video dengan \`/broadcast Caption Anda\`\n\n` +
-          `• *Atau langsung kirim:*\nGambar/video dengan caption \`/broadcast Pesan Anda\``;
-        
-        await this.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
-      }
-      
-      // Konfirmasi ke admin
-      await this.sendMessage(chatId, "✅ *Broadcast berhasil dikirim!*", { parse_mode: 'Markdown' });
-      return new Response("OK", { status: 200 });
-    }
-  }
-
-  // Method untuk mengirim broadcast dengan formatting yang konsisten
-  async sendBroadcastMessage(message) {
-    try {
-      const users = await this.getAllUsers();
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const user of users) {
-        try {
-          await this.sendMessage(user.id, message, { 
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true 
-          });
-          successCount++;
+    if (chatId.toString() === this.ownerId.toString()) {
+        if (text.startsWith("/broadcast")) {
+            const broadcastCaption = text.substring("/broadcast".length).trim();
           
-          // Delay kecil untuk menghindari rate limit
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.error(`Gagal mengirim ke user ${user.id}:`, error);
-          failCount++;
+            if (reply) {
+                if (reply.photo) {
+                    const file_id = reply.photo[reply.photo.length - 1].file_id;
+                    const formattedCaption = this.formatMediaCaption(broadcastCaption, 'photo');
+                    await this.sendBroadcastPhoto(file_id, formattedCaption);
+                } else if (reply.video) {
+                    const file_id = reply.video.file_id;
+                    const formattedCaption = this.formatMediaCaption(broadcastCaption, 'video');
+                    await this.sendBroadcastVideo(file_id, formattedCaption);
+                }
+            } else if (update.message.photo) {
+                const file_id = update.message.photo[update.message.photo.length - 1].file_id;
+                const formattedCaption = this.formatMediaCaption(caption.substring("/broadcast".length).trim(), 'photo');
+                await this.sendBroadcastPhoto(file_id, formattedCaption);
+            } else if (update.message.video) {
+                const file_id = update.message.video.file_id;
+                const formattedCaption = this.formatMediaCaption(caption.substring("/broadcast".length).trim(), 'video');
+                await this.sendBroadcastVideo(file_id, formattedCaption);
+            } else if (broadcastCaption) {
+                const formattedMessage = this.formatBroadcastMessage(broadcastCaption, 'text');
+                await this.sendBroadcastMessage(formattedMessage);
+            } else {
+                const helpMessage = `📝 *CARA MENGGUNAKAN BROADCAST*\n\n` +
+                  `• *Broadcast Teks:*\n\`/broadcast Pesan teks Anda\`\n\n` +
+                  `• *Broadcast Gambar/Video:*\nBalas gambar/video dengan \`/broadcast Caption Anda\`\n\n` +
+                  `• *Atau langsung kirim:*\nGambar/video dengan caption \`/broadcast Pesan Anda\``;
+                
+                await this.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+            }
+            return new Response("OK", { status: 200 });
         }
-      }
 
-      // Laporkan hasil ke admin
-      await this.sendMessage(this.ownerId, 
-        `📊 *LAPORAN BROADCAST*\n\n` +
-        `✅ Berhasil: ${successCount} users\n` +
-        `❌ Gagal: ${failCount} users\n` +
-        `📈 Total: ${users.length} users`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      console.error('Error dalam broadcast:', error);
-      await this.sendMessage(this.ownerId, "❌ Terjadi error saat mengirim broadcast");
-    }
-  }
-
-  // Method untuk broadcast photo dengan formatting
-  async sendBroadcastPhoto(file_id, caption) {
-    try {
-      const users = await this.getAllUsers();
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const user of users) {
-        try {
-          await this.sendPhoto(user.id, file_id, {
-            caption: caption,
-            parse_mode: 'Markdown'
-          });
-          successCount++;
-          
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.error(`Gagal mengirim photo ke user ${user.id}:`, error);
-          failCount++;
+        if (text.startsWith("/userlist")) {
+          await this.sendUserList(chatId, 0);
+          return new Response("OK", { status: 200 });
         }
-      }
-
-      await this.sendMessage(this.ownerId, 
-        `📊 *LAPORAN BROADCAST PHOTO*\n\n` +
-        `✅ Berhasil: ${successCount} users\n` +
-        `❌ Gagal: ${failCount} users\n` +
-        `📈 Total: ${users.length} users`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      console.error('Error dalam broadcast photo:', error);
-      await this.sendMessage(this.ownerId, "❌ Terjadi error saat mengirim broadcast photo");
-    }
-  }
-
-  // Method untuk broadcast video dengan formatting
-  async sendBroadcastVideo(file_id, caption) {
-    try {
-      const users = await this.getAllUsers();
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const user of users) {
-        try {
-          await this.sendVideo(user.id, file_id, {
-            caption: caption,
-            parse_mode: 'Markdown'
-          });
-          successCount++;
-          
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.error(`Gagal mengirim video ke user ${user.id}:`, error);
-          failCount++;
-        }
-      }
-
-      await this.sendMessage(this.ownerId, 
-        `📊 *LAPORAN BROADCAST VIDEO*\n\n` +
-        `✅ Berhasil: ${successCount} users\n` +
-        `❌ Gagal: ${failCount} users\n` +
-        `📈 Total: ${users.length} users`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      console.error('Error dalam broadcast video:', error);
-      await this.sendMessage(this.ownerId, "❌ Terjadi error saat mengirim broadcast video");
-    }
-  }
-
-  // Tambahkan method helper untuk mendapatkan semua users
-  async getAllUsers() {
-    // Implementasi untuk mendapatkan semua users dari KV storage
-    // Ini adalah contoh, sesuaikan dengan implementasi Anda
-    try {
-      const users = await this.kv.get('users', { type: 'json' });
-      return users || [];
-    } catch (error) {
-      console.error('Error getting users:', error);
-      return [];
-    }
-  }
-};
-    
-    if (text.startsWith("/userlist") && chatId.toString() === this.ownerId.toString()) {
-      await this.sendUserList(chatId, 0);
-      return new Response("OK", { status: 200 });
     }
     
     if (text.startsWith("/converter")) {
-  await this.sendMessage(
-    chatId,
-    `🤖 *Geo Project Bot*
+      await this.sendMessage(
+        chatId,
+        `🤖 *Geo Project Bot*
 
 Kirimkan link konfigurasi V2Ray dan saya akan mengubahnya ke format *Singbox*, *Nekobox*, dan *Clash*.
 
@@ -1325,55 +1202,55 @@ Kirimkan link konfigurasi V2Ray dan saya akan mengubahnya ke format *Singbox*, *
 **Catatan:**
 - Maksimal 10 link per permintaan
 - Disarankan menggunakan *Singbox versi 1.10.3* atau *1.11.8*`,
-    { 
-      parse_mode: "Markdown",
-      reply_to_message_id: messageId 
-    }
-  );
-  return new Response("OK", { status: 200 });
-}
-
-if (text.includes("://")) {
-  try {
-    const links = text.split("\n")
-      .map(line => line.trim())
-      .filter(line => line.includes("://"))
-      .slice(0, 10);
-    
-    if (links.length === 0) {
-      await this.sendMessage(
-        chatId, 
-        "❌ Tidak ada link valid yang ditemukan. Kirimkan link VMess, VLESS, Trojan, atau Shadowsocks.",
-        { reply_to_message_id: messageId }
+        { 
+          parse_mode: "Markdown",
+          reply_to_message_id: messageId 
+        }
       );
       return new Response("OK", { status: 200 });
     }
-    
-    const clashConfig = generateClashConfig(links, true);
-    const nekoboxConfig = generateNekoboxConfig(links, true);
-    const singboxConfig = generateSingboxConfig(links, true);
-    
-    await this.sendDocument(chatId, clashConfig, "clash.yaml", "text/yaml", { 
-      reply_to_message_id: messageId 
-    });
-    await this.sendDocument(chatId, nekoboxConfig, "nekobox.json", "application/json", { 
-      reply_to_message_id: messageId 
-    });
-    await this.sendDocument(chatId, singboxConfig, "singbox.bpf", "application/json", { 
-      reply_to_message_id: messageId 
-    });
-    
-  } catch (error) {
-    console.error("Error processing links:", error);
-    await this.sendMessage(
-      chatId, 
-      `❌ Error: ${error.message}`,
-      { reply_to_message_id: messageId }
-    );
-  }
-}
 
-return new Response("OK", { status: 200 });
+    if (text.includes("://")) {
+      try {
+        const links = text.split("\n")
+          .map(line => line.trim())
+          .filter(line => line.includes("://"))
+          .slice(0, 10);
+        
+        if (links.length === 0) {
+          await this.sendMessage(
+            chatId, 
+            "❌ Tidak ada link valid yang ditemukan. Kirimkan link VMess, VLESS, Trojan, atau Shadowsocks.",
+            { reply_to_message_id: messageId }
+          );
+          return new Response("OK", { status: 200 });
+        }
+        
+        const clashConfig = generateClashConfig(links, true);
+        const nekoboxConfig = generateNekoboxConfig(links, true);
+        const singboxConfig = generateSingboxConfig(links, true);
+        
+        await this.sendDocument(chatId, clashConfig, "clash.yaml", "text/yaml", { 
+          reply_to_message_id: messageId 
+        });
+        await this.sendDocument(chatId, nekoboxConfig, "nekobox.json", "application/json", { 
+          reply_to_message_id: messageId 
+        });
+        await this.sendDocument(chatId, singboxConfig, "singbox.bpf", "application/json", { 
+          reply_to_message_id: messageId 
+        });
+        
+      } catch (error) {
+        console.error("Error processing links:", error);
+        await this.sendMessage(
+          chatId, 
+          `❌ Error: ${error.message}`,
+          { reply_to_message_id: messageId }
+        );
+      }
+    }
+
+    return new Response("OK", { status: 200 });
   }
     
   async addUserToKv(from) {
@@ -1387,6 +1264,7 @@ return new Response("OK", { status: 200 });
     };
     await this.kv.put(`user:${userId}`, JSON.stringify(userData));
   }
+
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
     const body = {
@@ -1402,6 +1280,7 @@ return new Response("OK", { status: 200 });
     });
     return response.json();
   }
+
   async sendDocument(chatId, content, filename, mimeType, options = {}) {
     const formData = new FormData();
     const blob = new Blob([content], { type: mimeType });
@@ -1419,6 +1298,7 @@ return new Response("OK", { status: 200 });
     );
     return response.json();
   }
+
   async sendPhoto(chatId, photo, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendPhoto`;
     const body = {
@@ -1434,6 +1314,7 @@ return new Response("OK", { status: 200 });
     });
     return response.json();
   }
+
   async sendVideo(chatId, video, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendVideo`;
     const body = {
@@ -1449,32 +1330,41 @@ return new Response("OK", { status: 200 });
     });
     return response.json();
   }
-  // Fungsi baru untuk broadcast pesan
+
+  async getAllUsers() {
+    const list = await this.kv.list({ prefix: "user:" });
+    const users = [];
+    for (const key of list.keys) {
+      const userData = await this.kv.get(key.name, "json");
+      if (userData) {
+        users.push(userData);
+      }
+    }
+    return users;
+  }
+
   async sendBroadcastMessage(message) {
+    const users = await this.getAllUsers();
     let successCount = 0;
     let failCount = 0;
-    const list = await this.kv.list({ prefix: "user:" });
-    const userKeys = list.keys;
-    for (const key of userKeys) {
-      const userData = await this.kv.get(key.name, "json");
-      if (!userData || !userData.id) {
-        continue;
-      }
-      const chatId = userData.id;
-      const response = await this.sendMessage(chatId, message);
-      if (response && response.ok) {
-        successCount++;
-      } else {
-        failCount++;
-        console.error(`Gagal mengirim pesan ke ${chatId}:`, response ? response.description : "No response");
-        if (response && response.description && (response.description.includes("bot was blocked by the user") || response.description.includes("chat not found") || response.description.includes("user is deactivated"))) {
-          await this.kv.delete(key.name);
-          console.log(`User ${chatId} (${key.name}) removed from broadcast list.`);
+
+    for (const user of users) {
+      try {
+        const response = await this.sendMessage(user.id, message);
+        if (response && response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`Gagal mengirim pesan ke ${user.id}:`, response ? response.description : "No response");
         }
+      } catch (error) {
+        failCount++;
+        console.error(`Gagal mengirim pesan ke ${user.id}:`, error);
       }
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    const totalUsers = userKeys.length;
+
+    const totalUsers = users.length;
     const broadcastReport = `*Broadcast Teks Selesai* 📝
 
 Total user terdaftar: *${totalUsers}*
@@ -1482,31 +1372,29 @@ Berhasil dikirim: *${successCount}*
 Gagal dikirim: *${failCount}*`;
     await this.sendMessage(this.ownerId, broadcastReport);
   }
+
   async sendBroadcastPhoto(file_id, caption) {
+    const users = await this.getAllUsers();
     let successCount = 0;
     let failCount = 0;
-    const list = await this.kv.list({ prefix: "user:" });
-    const userKeys = list.keys;
-    for (const key of userKeys) {
-      const userData = await this.kv.get(key.name, "json");
-      if (!userData || !userData.id) {
-        continue;
-      }
-      const chatId = userData.id;
-      const response = await this.sendPhoto(chatId, file_id, { caption });
-      if (response && response.ok) {
-        successCount++;
-      } else {
-        failCount++;
-        console.error(`Gagal mengirim foto ke ${chatId}:`, response ? response.description : "No response");
-        if (response && response.description && (response.description.includes("bot was blocked by the user") || response.description.includes("chat not found") || response.description.includes("user is deactivated"))) {
-          await this.kv.delete(key.name);
-          console.log(`User ${chatId} (${key.name}) removed from broadcast list.`);
+
+    for (const user of users) {
+      try {
+        const response = await this.sendPhoto(user.id, file_id, { caption });
+        if (response && response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`Gagal mengirim foto ke ${user.id}:`, response ? response.description : "No response");
         }
+      } catch (error) {
+        failCount++;
+        console.error(`Gagal mengirim foto ke ${user.id}:`, error);
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    const totalUsers = userKeys.length;
+
+    const totalUsers = users.length;
     const broadcastReport = `*Broadcast Foto Selesai* 📸
 
 Total user terdaftar: *${totalUsers}*
@@ -1514,31 +1402,29 @@ Berhasil dikirim: *${successCount}*
 Gagal dikirim: *${failCount}*`;
     await this.sendMessage(this.ownerId, broadcastReport);
   }
+
   async sendBroadcastVideo(file_id, caption) {
+    const users = await this.getAllUsers();
     let successCount = 0;
     let failCount = 0;
-    const list = await this.kv.list({ prefix: "user:" });
-    const userKeys = list.keys;
-    for (const key of userKeys) {
-      const userData = await this.kv.get(key.name, "json");
-      if (!userData || !userData.id) {
-        continue;
-      }
-      const chatId = userData.id;
-      const response = await this.sendVideo(chatId, file_id, { caption });
-      if (response && response.ok) {
-        successCount++;
-      } else {
-        failCount++;
-        console.error(`Gagal mengirim video ke ${chatId}:`, response ? response.description : "No response");
-        if (response && response.description && (response.description.includes("bot was blocked by the user") || response.description.includes("chat not found") || response.description.includes("user is deactivated"))) {
-          await this.kv.delete(key.name);
-          console.log(`User ${chatId} (${key.name}) removed from broadcast list.`);
+
+    for (const user of users) {
+      try {
+        const response = await this.sendVideo(user.id, file_id, { caption });
+        if (response && response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+          console.error(`Gagal mengirim video ke ${user.id}:`, response ? response.description : "No response");
         }
+      } catch (error) {
+        failCount++;
+        console.error(`Gagal mengirim video ke ${user.id}:`, error);
       }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    const totalUsers = userKeys.length;
+
+    const totalUsers = users.length;
     const broadcastReport = `*Broadcast Video Selesai* 🎥
 
 Total user terdaftar: *${totalUsers}*
@@ -1546,6 +1432,7 @@ Berhasil dikirim: *${successCount}*
 Gagal dikirim: *${failCount}*`;
     await this.sendMessage(this.ownerId, broadcastReport);
   }
+
   async sendUserList(chatId, page = 0, messageId = null) {
     const pageSize = 10;
     const list = await this.kv.list({ prefix: "user:" });
@@ -1591,6 +1478,7 @@ Gagal dikirim: *${failCount}*`;
       await this.sendMessage(chatId, userListText, options);
     }
   }
+  
   async handleCallbackQuery(callbackQuery) {
     const data = callbackQuery.data;
     const chatId = callbackQuery.message.chat.id;
@@ -4019,9 +3907,9 @@ const worker_default = {
     }
     try {
       const update = await request.json();
-      const token = "8106502014:AAELnj_1ZuhMthqiG2n0KBZlBMW1Ozg5W5o";
-      const ownerId = 1467883032;
-      const requiredGroupId = "@auto_sc";
+      const token = "8222217978:AAH066G_u126sFzm-1g_nCxyFtx9Mtf60Xw";
+      const ownerId = 376534846;
+      const requiredGroupId = "@vlesscffree";
       const from = update.message?.from || update.callback_query?.from;
       const chat = update.message?.chat || update.callback_query?.message.chat;
       if (from && chat) {
