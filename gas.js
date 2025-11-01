@@ -2614,6 +2614,9 @@ const KonstantaGlobalbot = class {
   getAllRequests() {
     return globalThis.subdomainRequests.slice();
   }
+  getRandomHost() {
+    return "joss.krekkrek.web.id";
+  }
 };
 const TelegramWildcardBot = class {
   constructor(token, apiUrl, ownerId, globalBot) {
@@ -2919,6 +2922,21 @@ const TelegramBot = class {
       const { chat, text: messageText } = update.message;
       const chatId = chat.id;
       const text = messageText?.trim() || "";
+      const message_thread_id = update.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
+      if (text === '/ping') {
+        const delay = Date.now() - (update.message.date * 1000);
+        const firstMessage = 'Pong!🏓';
+        const secondMessage = 'Latency: ' + delay + 'ms';
+        const replyMarkup = {
+            inline_keyboard: [
+                [{ text: "📞 Hubungi Developer", url: "https://t.me/sampiiiiu" }]
+            ]
+        };
+        await this.sendMessage(chatId, firstMessage, { ...options });
+        await this.sendMessage(chatId, secondMessage, { reply_markup: replyMarkup, ...options });
+        return new Response("OK", { status: 200 });
+    }
       if (text.startsWith("/config")) {
         const helpMsg = `\u{1F31F} *PANDUAN CONFIG ROTATE* \u{1F31F}
 
@@ -3288,6 +3306,279 @@ const CekkuotaBotku = class _CekkuotaBotku {
   }
 };
 
+// src/sublink/sublink.js
+const sublinkState = new Map();
+const SublinkBuilderBot = class {
+  constructor(token, apiUrl = "https://api.telegram.org", ownerId, globalBot) {
+    this.token = token;
+    this.apiUrl = apiUrl;
+    this.globalBot = globalBot;
+  }
+  async handleUpdate(update, ctx) {
+    if (update.message && update.message.text) {
+      const chatId = update.message.chat.id;
+      const text = update.message.text.trim();
+      const message_thread_id = update.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
+      if (text === "/sublink") {
+        return this.start(chatId, options);
+      }
+      const state = sublinkState.get(chatId);
+      if (state) {
+        if (state.step === "bug") {
+          state.bug = text;
+          state.step = "limit";
+          await this.sendMessage(chatId, "Masukkan limit (angka antara 1-20):", options);
+        } else if (state.step === "limit") {
+          const limit = parseInt(text, 10);
+          if (isNaN(limit) || limit < 1 || limit > 20) {
+            await this.sendMessage(chatId, "Input tidak valid. Silakan masukkan angka antara 1 dan 20.", options);
+          } else {
+            state.limit = limit;
+            state.step = "country";
+            const keyboard = {
+              inline_keyboard: [
+                [{ text: "All Countries", callback_data: "sublink_country_all" }],
+                [{ text: "Random", callback_data: "sublink_country_random" }],
+                [
+                  { text: "Indonesia (ID)", callback_data: "sublink_country_id" },
+                  { text: "Singapore (SG)", callback_data: "sublink_country_sg" },
+                  { text: "Malaysia (MY)", callback_data: "sublink_country_my" }
+                ],
+                [
+                  { text: "United States (US)", callback_data: "sublink_country_us" },
+                  { text: "Japan (JP)", callback_data: "sublink_country_jp" },
+                  { text: "South Korea (KR)", callback_data: "sublink_country_kr" }
+                ],
+                [
+                  { text: "Thailand (TH)", callback_data: "sublink_country_th" },
+                  { text: "Vietnam (VN)", callback_data: "sublink_country_vn" },
+                  { text: "Philippines (PH)", callback_data: "sublink_country_ph" }
+                ],
+                [
+                  { text: "United Kingdom (GB)", callback_data: "sublink_country_gb" },
+                  { text: "Germany (DE)", callback_data: "sublink_country_de" },
+                  { text: "France (FR)", callback_data: "sublink_country_fr" }
+                ],
+                [
+                  { text: "Brazil (BR)", callback_data: "sublink_country_br" },
+                  { text: "India (IN)", callback_data: "sublink_country_in" },
+                  { text: "Australia (AU)", callback_data: "sublink_country_au" }
+                ],
+                [
+                  { text: "Canada (CA)", callback_data: "sublink_country_ca" },
+                  { text: "Turkey (TR)", callback_data: "sublink_country_tr" },
+                  { text: "Netherlands (NL)", callback_data: "sublink_country_nl" }
+                ],
+                [
+                  { text: "Taiwan (TW)", callback_data: "sublink_country_tw" },
+                  { text: "Hong Kong (HK)", callback_data: "sublink_country_hk" },
+                  { text: "Russia (RU)", callback_data: "sublink_country_ru" }
+                ]
+              ]
+            };
+            await this.sendMessage(chatId, "Pilih negara:", { reply_markup: keyboard, ...options });
+          }
+        }
+      }
+    }
+    if (update.callback_query) {
+      const chatId = update.callback_query.message.chat.id;
+      const messageId = update.callback_query.message.message_id;
+      const data = update.callback_query.data;
+      const message_thread_id = update.callback_query.message.message_thread_id;
+      const options = message_thread_id ? { message_thread_id } : {};
+      const state = sublinkState.get(chatId);
+      if (!state || !data.startsWith("sublink_")) {
+        return new Response("OK", { status: 200 });
+      }
+      const [_, step, value] = data.split("_");
+      if (step === "app" && state.step === "app") {
+        state.app = value;
+        state.step = "type";
+        const keyboard = {
+          inline_keyboard: [
+            [{ text: "VLESS", callback_data: "sublink_type_vless" }],
+            [{ text: "Trojan", callback_data: "sublink_type_trojan" }],
+            [{ text: "Shadowsocks", callback_data: "sublink_type_shadowsocks" }]
+          ]
+        };
+        await this.editMessageText(chatId, messageId, "Pilih tipe protokol:", { reply_markup: keyboard, ...options });
+      } else if (step === "type" && state.step === "type") {
+        state.type = value;
+        state.step = "tls";
+        const keyboard = {
+          inline_keyboard: [
+            [{ text: "True", callback_data: "sublink_tls_true" }, { text: "False", callback_data: "sublink_tls_false" }]
+          ]
+        };
+        await this.editMessageText(chatId, messageId, "Gunakan TLS?", { reply_markup: keyboard, ...options });
+      } else if (step === "tls" && state.step === "tls") {
+        state.tls = value;
+        state.step = "wildcard";
+        const keyboard = {
+          inline_keyboard: [
+            [{ text: "True", callback_data: "sublink_wildcard_true" }, { text: "False", callback_data: "sublink_wildcard_false" }]
+          ]
+        };
+        await this.editMessageText(chatId, messageId, "Gunakan Wildcard?", { reply_markup: keyboard, ...options });
+      } else if (step === "wildcard" && state.step === "wildcard") {
+        state.wildcard = value;
+        state.step = "bug";
+        await this.editMessageText(chatId, messageId, "Silakan kirimkan bug host Anda (contoh: ava.game.naver.com):", options);
+      } else if (step === "country" && state.step === "country") {
+        state.country = value;
+        state.processingMessageId = messageId;
+        await this.editMessageText(chatId, messageId, "Sedang memproses permintaan Anda...", options);
+        const randomHost = this.globalBot.getRandomHost();
+        let url;
+        if (state.country === "all") {
+          url = `https://${randomHost}/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}`;
+        } else if (state.country === "random") {
+          url = `https://${randomHost}/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=random`;
+        } else {
+          url = `https://${randomHost}/vpn/${state.app}?type=${state.type}&bug=${state.bug}&tls=${state.tls}&wildcard=${state.wildcard}&limit=${state.limit}&country=${state.country}`;
+        }
+        console.log(`Mengakses URL: ${url}`);
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Gagal mengambil data dari URL: ${response.statusText}`);
+          }
+          const content = await response.text();
+          if (!content || content.trim() === "") {
+            throw new Error("Tidak ada data yang diterima dari server");
+          }
+          let countryDisplay;
+          if (state.country === "all") {
+            countryDisplay = "All Countries";
+          } else if (state.country === "random") {
+            countryDisplay = "Random Country";
+          } else {
+            countryDisplay = state.country.toUpperCase();
+          }
+          const caption = `\u{1F517} Sub Link Berhasil Dibuat!
+
+\u{1F4F1} Aplikasi: ${state.app}
+\u{1F527} Tipe: ${state.type}
+\u{1F41B} Bug: ${state.bug}
+\u{1F512} TLS: ${state.tls}
+\u{1F3AF} Wildcard: ${state.wildcard}
+\u{1F4CA} Limit: ${state.limit}
+\u{1F30D} Country: ${countryDisplay}
+
+\u{1F447} Klik link di bawah untuk copy:
+${url}`;
+          await this.deleteMessage(chatId, state.processingMessageId);
+          await this.sendDocument(chatId, content, "sublink.txt", "text/plain", {
+            caption,
+            parse_mode: "HTML",
+            ...options
+          });
+        } catch (error) {
+          console.error("Error:", error);
+          await this.deleteMessage(chatId, state.processingMessageId);
+          await this.sendMessage(chatId, `\u274C Terjadi Kesalahan
+
+${error.message}
+
+Silakan coba lagi dengan parameter yang berbeda.`, {
+            parse_mode: "HTML",
+            ...options
+          });
+        } finally {
+          sublinkState.delete(chatId);
+        }
+      }
+    }
+    return new Response("OK", { status: 200 });
+  }
+  async start(chatId, options = {}) {
+    sublinkState.set(chatId, { step: "app" });
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: "V2Ray", callback_data: "sublink_app_v2ray" }, { text: "Clash", callback_data: "sublink_app_clash" }],
+        [{ text: "Nekobox", callback_data: "sublink_app_nekobox" }, { text: "Singbox", callback_data: "sublink_app_singbox" }],
+        [{ text: "Surfboard", callback_data: "sublink_app_surfboard" }]
+      ]
+    };
+    await this.sendMessage(chatId, "Silakan pilih aplikasi:", { reply_markup: keyboard, ...options });
+    return new Response("OK", { status: 200 });
+  }
+  async sendMessage(chatId, text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
+    const body = {
+      chat_id: chatId,
+      text,
+      parse_mode: "Markdown",
+      ...options
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return response.json();
+  }
+  async editMessageText(chatId, messageId, text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "Markdown",
+      ...options
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return response.json();
+  }
+  async sendDocument(chatId, content, filename, mimeType, options = {}) {
+    const formData = new FormData();
+    const blob = new Blob([content], { type: mimeType });
+    formData.append("document", blob, filename);
+    formData.append("chat_id", String(chatId));
+    if (options.message_thread_id) {
+      formData.append("message_thread_id", String(options.message_thread_id));
+    }
+    if (options.caption) {
+      formData.append("caption", options.caption);
+    }
+    if (options.parse_mode) {
+      formData.append("parse_mode", options.parse_mode);
+    }
+    if (options.reply_to_message_id) {
+      formData.append("reply_to_message_id", String(options.reply_to_message_id));
+    }
+    const response = await fetch(`${this.apiUrl}/bot${this.token}/sendDocument`, {
+      method: "POST",
+      body: formData
+    });
+    return response.json();
+  }
+  async deleteMessage(chatId, messageId) {
+    try {
+      const url = `${this.apiUrl}/bot${this.token}/deleteMessage`;
+      const body = { chat_id: chatId, message_id: messageId };
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      if (!result.ok) {
+        console.warn("Gagal menghapus pesan:", result);
+      }
+      return result;
+    } catch (error) {
+      console.error("Error saat menghapus pesan:", error);
+    }
+  }
+};
+
 // src/worker.js
 const worker_default = {
   async fetch(request, env) {
@@ -3319,6 +3610,7 @@ const worker_default = {
       const bot5 = new TelegramWildcardBot(token, "https://api.telegram.org", ownerId, globalBot);
       const bot6 = new CekkuotaBotku(token, "https://api.telegram.org", ownerId, globalBot);
       const bot7 = new Converterbot(token, "https://api.telegram.org", ownerId, env);
+      const sublinkBot = new SublinkBuilderBot(token, "https://api.telegram.org", ownerId, globalBot);
       await Promise.all([
         bot1.handleUpdate(update),
         bot2.handleUpdate(update),
@@ -3326,7 +3618,8 @@ const worker_default = {
         bot4.handleUpdate(update),
         bot5.handleUpdate(update),
         bot6.handleUpdate(update),
-        bot7.handleUpdate(update)
+        bot7.handleUpdate(update),
+        sublinkBot.handleUpdate(update)
       ]);
       return new Response("OK", { status: 200 });
     } catch (error) {
