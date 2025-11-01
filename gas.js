@@ -1,6 +1,3 @@
-var __defProp = Object.defineProperty;
-var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
-
 // src/converter/linkParser.js
 function decodeBase64(str) {
   if (typeof atob === "function") {
@@ -26,7 +23,6 @@ function decodeBase64(str) {
   }
   return result;
 }
-__name(decodeBase64, "decodeBase64");
 function parseV2RayLink(link) {
   try {
     if (link.startsWith("vmess://")) {
@@ -74,7 +70,6 @@ function parseV2RayLink(link) {
     throw new Error(`Gagal parsing link VMess: ${error.message}`);
   }
 }
-__name(parseV2RayLink, "parseV2RayLink");
 function parseVLESSLink(link) {
   const url = new URL(link);
   const params = new URLSearchParams(url.search);
@@ -92,7 +87,6 @@ function parseVLESSLink(link) {
     sni: params.get("sni") || params.get("host") || url.hostname
   };
 }
-__name(parseVLESSLink, "parseVLESSLink");
 function parseTrojanLink(link) {
   const url = new URL(link);
   const params = new URLSearchParams(url.search);
@@ -110,7 +104,6 @@ function parseTrojanLink(link) {
     sni: params.get("sni") || params.get("host") || url.hostname
   };
 }
-__name(parseTrojanLink, "parseTrojanLink");
 function parseShadowsocksLink(link) {
   const url = new URL(link);
   const params = new URLSearchParams(url.search);
@@ -132,7 +125,6 @@ function parseShadowsocksLink(link) {
   }
   throw new Error("Shadowsocks link invalid");
 }
-__name(parseShadowsocksLink, "parseShadowsocksLink");
 
 // src/converter/configGenerators.js
 function generateClashConfig(links, isFullConfig = false) {
@@ -305,7 +297,6 @@ rules:
   }
   return config;
 }
-__name(generateClashConfig, "generateClashConfig");
 function generateNekoboxConfig(links, isFullConfig = false) {
   const parsedLinks = links.map((link) => parseV2RayLink(link));
   let config = isFullConfig ? `{
@@ -704,7 +695,6 @@ function generateNekoboxConfig(links, isFullConfig = false) {
   }
   return config;
 }
-__name(generateNekoboxConfig, "generateNekoboxConfig");
 function generateSingboxConfig(links, isFullConfig = false) {
   const parsedLinks = links.map((link) => parseV2RayLink(link));
   let config = isFullConfig ? `{
@@ -1074,26 +1064,24 @@ function generateSingboxConfig(links, isFullConfig = false) {
   }
   return config;
 }
-__name(generateSingboxConfig, "generateSingboxConfig");
 
 // src/converter/converter.js
-var userChats = /* @__PURE__ */ new Set();
-var Converterbot = class {
-  static {
-    __name(this, "Converterbot");
-  }
-  constructor(token, apiUrl, ownerId) {
+const Converterbot = class {
+  constructor(token, apiUrl, ownerId, env) {
     this.token = token;
     this.apiUrl = apiUrl || "https://api.telegram.org";
     this.ownerId = ownerId;
+    this.kv = env.geovpn_db;
   }
   async handleUpdate(update) {
+    if (update.callback_query) {
+      return this.handleCallbackQuery(update.callback_query);
+    }
     if (!update.message) return new Response("OK", { status: 200 });
     const chatId = update.message.chat.id;
     const text = update.message.text || "";
     const messageId = update.message.message_id;
-    userChats.add(chatId);
-    console.log(`User ${chatId} added. Total users: ${userChats.size}`);
+    await this.addUserToKv(update.message.from);
     if (text.startsWith("/broadcast") && chatId.toString() === this.ownerId.toString()) {
       const broadcastMessage = text.substring("/broadcast ".length).trim();
       if (broadcastMessage) {
@@ -1101,6 +1089,10 @@ var Converterbot = class {
       } else {
         await this.sendMessage(chatId, "Contoh penggunaan: `/broadcast Pesan yang ingin Anda siarkan.`");
       }
+      return new Response("OK", { status: 200 });
+    }
+    if (text.startsWith("/userlist") && chatId.toString() === this.ownerId.toString()) {
+      await this.sendUserList(chatId, 0);
       return new Response("OK", { status: 200 });
     }
     if (text.startsWith("/converter")) {
@@ -1144,6 +1136,17 @@ Catatan:
     }
     return new Response("OK", { status: 200 });
   }
+  async addUserToKv(from) {
+    if (!from || !from.id) return;
+    const userId = from.id.toString();
+    const userData = {
+      id: from.id,
+      first_name: from.first_name || null,
+      last_name: from.last_name || null,
+      username: from.username || null
+    };
+    await this.kv.put(`user:${userId}`, JSON.stringify(userData));
+  }
   async sendMessage(chatId, text, options = {}) {
     const url = `${this.apiUrl}/bot${this.token}/sendMessage`;
     const body = {
@@ -1180,26 +1183,119 @@ Catatan:
   async sendBroadcastMessage(message) {
     let successCount = 0;
     let failCount = 0;
-    for (const chatId of userChats) {
-      try {
-        await this.sendMessage(chatId, message);
+    const list = await this.kv.list({ prefix: "user:" });
+    const userKeys = list.keys;
+    for (const key of userKeys) {
+      const userData = await this.kv.get(key.name, "json");
+      if (!userData || !userData.id) {
+        continue;
+      }
+      const chatId = userData.id;
+      const response = await this.sendMessage(chatId, message);
+      if (response && response.ok) {
         successCount++;
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      } catch (error) {
-        console.error(`Gagal mengirim pesan ke ${chatId}:`, error);
+      } else {
         failCount++;
-        if (error.description && (error.description.includes("bot was blocked by the user") || error.description.includes("chat not found"))) {
-          userChats.delete(chatId);
+        console.error(`Gagal mengirim pesan ke ${chatId}:`, response ? response.description : "No response");
+        if (response && response.description && (response.description.includes("bot was blocked by the user") || response.description.includes("chat not found") || response.description.includes("user is deactivated"))) {
+          await this.kv.delete(key.name);
+          console.log(`User ${chatId} (${key.name}) removed from broadcast list.`);
         }
       }
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    const totalUsers = userChats.size;
+    const totalUsers = userKeys.length;
     const broadcastReport = `Pesan broadcast telah dikirimkan.
 
 Total user terdaftar: *${totalUsers}*
 Berhasil dikirim: *${successCount}*
 Gagal dikirim: *${failCount}*`;
     await this.sendMessage(this.ownerId, broadcastReport);
+  }
+  async sendUserList(chatId, page = 0, messageId = null) {
+    const pageSize = 10;
+    const list = await this.kv.list({ prefix: "user:" });
+    const userKeys = list.keys;
+    const totalUsers = userKeys.length;
+    const totalPages = Math.ceil(totalUsers / pageSize);
+    const start = page * pageSize;
+    const end = start + pageSize;
+    const pageKeys = userKeys.slice(start, end);
+
+    let userListText = `*Daftar Pengguna (${start + 1}-${Math.min(end, totalUsers)} dari ${totalUsers})*\n\n`;
+
+    for (const key of pageKeys) {
+      const userData = await this.kv.get(key.name, "json");
+      if (userData) {
+        const firstName = userData.first_name || "";
+        const lastName = userData.last_name || "";
+        const username = userData.username ? ` (@${userData.username})` : "";
+        userListText += `*ID:* \`${userData.id}\`\n*Nama:* ${firstName} ${lastName}${username}\n\n`;
+      }
+    }
+
+    const inline_keyboard = [];
+    const navButtons = [];
+    if (page > 0) {
+      navButtons.push({ text: "⬅️ Sebelumnya", callback_data: `userlist_page_${page - 1}` });
+    }
+    if (end < totalUsers) {
+      navButtons.push({ text: "Berikutnya ➡️", callback_data: `userlist_page_${page + 1}` });
+    }
+    if (navButtons.length > 0) {
+      inline_keyboard.push(navButtons);
+    }
+
+    const options = {
+      parse_mode: "Markdown",
+      reply_markup: { inline_keyboard }
+    };
+
+    if (messageId) {
+      await this.editMessageText(chatId, messageId, userListText, options);
+    } else {
+      await this.sendMessage(chatId, userListText, options);
+    }
+  }
+  async handleCallbackQuery(callbackQuery) {
+    const data = callbackQuery.data;
+    const chatId = callbackQuery.message.chat.id;
+    const messageId = callbackQuery.message.message_id;
+
+    if (data.startsWith("userlist_page_")) {
+      const page = parseInt(data.split("_")[2], 10);
+      await this.sendUserList(chatId, page, messageId);
+    }
+
+    await this.answerCallbackQuery(callbackQuery.id);
+    return new Response("OK", { status: 200 });
+  }
+
+  async editMessageText(chatId, messageId, text, options = {}) {
+    const url = `${this.apiUrl}/bot${this.token}/editMessageText`;
+    const body = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      ...options
+    };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return response.json();
+  }
+
+  async answerCallbackQuery(callbackQueryId) {
+    const url = `${this.apiUrl}/bot${this.token}/answerCallbackQuery`;
+    const body = { callback_query_id: callbackQueryId };
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return response.json();
   }
 };
 
@@ -1211,7 +1307,6 @@ function generateUUID() {
     return v.toString(16);
   });
 }
-__name(generateUUID, "generateUUID");
 async function randomconfig() {
   try {
     const HOSTKU2 = "joss.krekkrek.web.id";
@@ -1302,7 +1397,6 @@ ${ssTLSLink2}
     return `\u26A0\uFE0F Terjadi kesalahan: ${error.message}`;
   }
 }
-__name(randomconfig, "randomconfig");
 
 // src/config.js
 async function rotateconfig(chatId, text) {
@@ -1442,23 +1536,20 @@ ss://${toBase642(`none:${generateUUID4()}`)}@${HOSTKU2}:80?encryption=none&type=
     await this.deleteMessage(chatId, loadingMessage.result.message_id);
   }
 }
-__name(rotateconfig, "rotateconfig");
 
 // src/randomip/randomip.js
-var globalIpList = [];
-var globalCountryCodes = [];
+let globalIpList = [];
+let globalCountryCodes = [];
 async function fetchProxyList(url) {
   const response = await fetch(url);
   const ipText = await response.text();
   const ipList = ipText.split("\n").map((line) => line.trim()).filter((line) => line !== "");
   return ipList;
 }
-__name(fetchProxyList, "fetchProxyList");
 function getFlagEmoji(code) {
   const OFFSET = 127397;
   return [...code.toUpperCase()].map((c) => String.fromCodePoint(c.charCodeAt(0) + OFFSET)).join("");
 }
-__name(getFlagEmoji, "getFlagEmoji");
 function buildCountryButtons(page = 0, pageSize = 15) {
   const start = page * pageSize;
   const end = start + pageSize;
@@ -1477,7 +1568,6 @@ function buildCountryButtons(page = 0, pageSize = 15) {
   if (navButtons.length) inline_keyboard.push(navButtons);
   return { inline_keyboard };
 }
-__name(buildCountryButtons, "buildCountryButtons");
 function generateCountryIPsMessage(ipList, countryCode) {
   const filteredIPs = ipList.filter((line) => line.split(",")[2] === countryCode);
   if (filteredIPs.length === 0) return null;
@@ -1494,7 +1584,6 @@ function generateCountryIPsMessage(ipList, countryCode) {
   });
   return msg;
 }
-__name(generateCountryIPsMessage, "generateCountryIPsMessage");
 async function handleRandomIpCommand(bot, chatId) {
   try {
     globalIpList = await fetchProxyList("https://raw.githubusercontent.com/jaka2m/botak/refs/heads/main/cek/proxyList.txt");
@@ -1513,7 +1602,6 @@ async function handleRandomIpCommand(bot, chatId) {
     await bot.sendMessage(chatId, `\u274C Gagal mengambil data IP: ${error.message}`);
   }
 }
-__name(handleRandomIpCommand, "handleRandomIpCommand");
 async function handleCallbackQuery(bot, callbackQuery) {
   const chatId = callbackQuery.message.chat.id;
   const messageId = callbackQuery.message.message_id;
@@ -1541,13 +1629,9 @@ async function handleCallbackQuery(bot, callbackQuery) {
     return;
   }
 }
-__name(handleCallbackQuery, "handleCallbackQuery");
 
 // src/randomip/bot2.js
-var TelegramBotku = class {
-  static {
-    __name(this, "TelegramBotku");
-  }
+const TelegramBotku = class {
   constructor(token, apiUrl = "https://api.telegram.org") {
     this.token = token;
     this.apiUrl = apiUrl;
@@ -1852,7 +1936,7 @@ _Error:_ ${error.message}`,
 };
 
 // src/checkip/cek.js
-var WILDCARD_MAP = {
+const WILDCARD_MAP = {
   ava: "ava.game.naver.com",
   api: "api.midtrans.com",
   blibli: "business.blibli.com",
@@ -1868,11 +1952,11 @@ var WILDCARD_MAP = {
   fb: "investor.fb.com",
   bakrie: "bakrie.ac.id"
 };
-var WILDCARD_OPTIONS = Object.entries(WILDCARD_MAP).map(
+const WILDCARD_OPTIONS = Object.entries(WILDCARD_MAP).map(
   ([value, text]) => ({ text, value })
 );
-var DEFAULT_HOST = "joss.krekkrek.web.id";
-var API_URL = "https://geovpn.vercel.app/check?ip=";
+const DEFAULT_HOST = "joss.krekkrek.web.id";
+const API_URL = "https://geovpn.vercel.app/check?ip=";
 async function fetchIPData(ip, port) {
   try {
     const response = await fetch(`${API_URL}${encodeURIComponent(ip)}:${encodeURIComponent(port)}`);
@@ -1883,7 +1967,6 @@ async function fetchIPData(ip, port) {
     return null;
   }
 }
-__name(fetchIPData, "fetchIPData");
 function createProtocolInlineKeyboard(ip, port) {
   return {
     inline_keyboard: [
@@ -1897,7 +1980,6 @@ function createProtocolInlineKeyboard(ip, port) {
     ]
   };
 }
-__name(createProtocolInlineKeyboard, "createProtocolInlineKeyboard");
 function createInitialWildcardInlineKeyboard(ip, port, protocol) {
   return {
     inline_keyboard: [
@@ -1911,7 +1993,6 @@ function createInitialWildcardInlineKeyboard(ip, port, protocol) {
     ]
   };
 }
-__name(createInitialWildcardInlineKeyboard, "createInitialWildcardInlineKeyboard");
 function createWildcardOptionsInlineKeyboard(ip, port, protocol) {
   const buttons = WILDCARD_OPTIONS.map((option, index) => [
     { text: `\u{1F505} ${index + 1}. ${option.text}`, callback_data: `WILDCARD|${protocol}|${ip}|${port}|${option.value}` }
@@ -1919,7 +2000,6 @@ function createWildcardOptionsInlineKeyboard(ip, port, protocol) {
   buttons.push([{ text: "\u{1F519} Kembali", callback_data: `BACK|${ip}|${port}` }]);
   return { inline_keyboard: buttons };
 }
-__name(createWildcardOptionsInlineKeyboard, "createWildcardOptionsInlineKeyboard");
 function generateUUID2() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0;
@@ -1927,13 +2007,11 @@ function generateUUID2() {
     return v.toString(16);
   });
 }
-__name(generateUUID2, "generateUUID");
 function toBase64(str) {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
   return btoa(String.fromCharCode(...new Uint8Array(data.buffer)));
 }
-__name(toBase64, "toBase64");
 function generateConfig(config, protocol, wildcardKey = null) {
   if (!config || !config.ip || !config.port || !config.isp) {
     return "\u274C Data tidak valid!";
@@ -1991,13 +2069,9 @@ ${configString2}
   }
   return "\u274C Unknown protocol!";
 }
-__name(generateConfig, "generateConfig");
 
 // src/checkip/botCek.js
-var TelegramProxyCekBot = class {
-  static {
-    __name(this, "TelegramProxyCekBot");
-  }
+const TelegramProxyCekBot = class {
   constructor(token, apiUrl = "https://api.telegram.org") {
     this.token = token;
     this.apiUrl = apiUrl;
@@ -2175,23 +2249,21 @@ Pilih protokol:`;
 };
 
 // src/proxyip/proxyip.js
-var APIKU = "https://geovpn.vercel.app/check?ip=";
-var DEFAULT_HOST2 = "joss.krekkrek.web.id";
-var sentMessages = /* @__PURE__ */ new Map();
-var paginationState = /* @__PURE__ */ new Map();
+const APIKU = "https://geovpn.vercel.app/check?ip=";
+const DEFAULT_HOST2 = "joss.krekkrek.web.id";
+const sentMessages = /* @__PURE__ */ new Map();
+const paginationState = /* @__PURE__ */ new Map();
 function generateUUID3() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0, v = c === "x" ? r : r & 3 | 8;
     return v.toString(16);
   });
 }
-__name(generateUUID3, "generateUUID");
 function getFlagEmoji2(countryCode) {
   if (!countryCode) return "";
   const codePoints = [...countryCode.toUpperCase()].map((c) => 127462 - 65 + c.charCodeAt());
   return String.fromCodePoint(...codePoints);
 }
-__name(getFlagEmoji2, "getFlagEmoji");
 function canSendMessage(chatId, key, interval = 3e4) {
   const now = Date.now();
   if (!sentMessages.has(chatId)) sentMessages.set(chatId, {});
@@ -2202,7 +2274,6 @@ function canSendMessage(chatId, key, interval = 3e4) {
   }
   return false;
 }
-__name(canSendMessage, "canSendMessage");
 function chunkArray(arr, size) {
   const chunks = [];
   for (let i = 0; i < arr.length; i += size) {
@@ -2210,7 +2281,6 @@ function chunkArray(arr, size) {
   }
   return chunks;
 }
-__name(chunkArray, "chunkArray");
 function generateCountryButtons(countryCodes, page = 0, pageSize = 12) {
   const totalPages = Math.ceil(countryCodes.length / pageSize);
   const start = page * pageSize;
@@ -2233,7 +2303,6 @@ function generateCountryButtons(countryCodes, page = 0, pageSize = 12) {
   buttons.push(navButtons);
   return buttons;
 }
-__name(generateCountryButtons, "generateCountryButtons");
 async function handleProxyipCommand(bot, msg) {
   const chatId = msg.chat.id;
   if (!canSendMessage(chatId, "proxyip_command")) return;
@@ -2257,7 +2326,6 @@ async function handleProxyipCommand(bot, msg) {
     await bot.sendMessage(chatId, `\u26A0\uFE0F *Terjadi kesalahan saat mengambil daftar IP: ${error.message}*`, { parse_mode: "Markdown" });
   }
 }
-__name(handleProxyipCommand, "handleProxyipCommand");
 async function handleCallbackQuery2(bot, callbackQuery) {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
@@ -2406,13 +2474,9 @@ ss://${toBase642(`none:${uuid}`)}@${DEFAULT_HOST2}:80?encryption=none&type=ws&ho
   }
   await bot.answerCallbackQuery(callbackQuery.id);
 }
-__name(handleCallbackQuery2, "handleCallbackQuery");
 
 // src/proxyip/bot3.js
-var TelegramProxyBot = class {
-  static {
-    __name(this, "TelegramProxyBot");
-  }
+const TelegramProxyBot = class {
   constructor(token, apiUrl = "https://api.telegram.org") {
     this.token = token;
     this.apiUrl = apiUrl;
@@ -2466,10 +2530,7 @@ var TelegramProxyBot = class {
 };
 
 // src/wildcard/botwild.js
-var KonstantaGlobalbot = class {
-  static {
-    __name(this, "KonstantaGlobalbot");
-  }
+const KonstantaGlobalbot = class {
   constructor({ apiKey, rootDomain, accountID, zoneID, apiEmail, serviceName }) {
     this.apiKey = apiKey;
     this.rootDomain = rootDomain;
@@ -2554,10 +2615,7 @@ var KonstantaGlobalbot = class {
     return globalThis.subdomainRequests.slice();
   }
 };
-var TelegramWildcardBot = class {
-  static {
-    __name(this, "TelegramWildcardBot");
-  }
+const TelegramWildcardBot = class {
   constructor(token, apiUrl, ownerId, globalBot) {
     this.token = token;
     this.apiUrl = apiUrl || "https://api.telegram.org";
@@ -2840,11 +2898,8 @@ ${lines}`;
 };
 
 // src/bot.js
-var HOSTKU = "joss.krekkrek.web.id";
-var TelegramBot = class {
-  static {
-    __name(this, "TelegramBot");
-  }
+const HOSTKU = "joss.krekkrek.web.id";
+const TelegramBot = class {
   constructor(token, apiUrl, ownerId) {
     this.token = token;
     this.apiUrl = apiUrl || "https://api.telegram.org";
@@ -2990,10 +3045,7 @@ ${error.message}`);
 };
 
 // src/kuota.js
-var CekkuotaBotku = class _CekkuotaBotku {
-  static {
-    __name(this, "CekkuotaBotku");
-  }
+const CekkuotaBotku = class _CekkuotaBotku {
   constructor(token, apiUrl = "https://api.telegram.org") {
     this.token = token;
     this.apiUrl = apiUrl;
@@ -3237,7 +3289,7 @@ var CekkuotaBotku = class _CekkuotaBotku {
 };
 
 // src/worker.js
-var worker_default = {
+const worker_default = {
   async fetch(request, env) {
     if (request.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
@@ -3266,7 +3318,7 @@ var worker_default = {
       const bot4 = new TelegramProxyBot(token, "https://api.telegram.org", ownerId, globalBot);
       const bot5 = new TelegramWildcardBot(token, "https://api.telegram.org", ownerId, globalBot);
       const bot6 = new CekkuotaBotku(token, "https://api.telegram.org", ownerId, globalBot);
-      const bot7 = new Converterbot(token, "https://api.telegram.org", ownerId, globalBot);
+      const bot7 = new Converterbot(token, "https://api.telegram.org", ownerId, env);
       await Promise.all([
         bot1.handleUpdate(update),
         bot2.handleUpdate(update),
