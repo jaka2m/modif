@@ -1090,7 +1090,7 @@ const Converterbot = class {
     this.token = token;
     this.apiUrl = apiUrl || "https://api.telegram.org";
     this.ownerId = ownerId;
-    this.kv = env.GEO_DB;
+    this.kv = env.geovpn_db;
   }
 
   // Format pesan broadcast yang lebih menarik
@@ -3991,9 +3991,9 @@ const worker_default = {
     }
     try {
       const update = await request.json();
-      const token = "7664381872:AAFBZquRrIqh7jALwv6-hkcb-ZXMrjqLMB0";
-      const ownerId = 1467883032;
-      const requiredGroupId = "@escampuranbot";
+      const token = "8222217978:AAH066G_u126sFzm-1g_nCxyFtx9Mtf60Xw";
+      const ownerId = 376534846;
+      const requiredGroupId = "@vpnplangaplongobot";
       const from = update.message?.from || update.callback_query?.from;
       const chat = update.message?.chat || update.callback_query?.message.chat;
       if (from && chat) {
